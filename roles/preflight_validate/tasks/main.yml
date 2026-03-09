@@ -1,0 +1,299 @@
+---
+- name: Initialize preflight result buckets
+  ansible.builtin.set_fact:
+    preflight_errors: []
+    preflight_warnings: []
+
+- name: Capture inventory view for validation
+  ansible.builtin.set_fact:
+    preflight_group_hosts: "{{ groups[preflight_target_group] | default([]) }}"
+    preflight_inventory_dump: "{{ hostvars | to_nice_yaml }}"
+
+- name: Check target group population
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Inventory group ' ~ preflight_target_group ~ ' is empty. Define at least one OVH core host in inventories/prod/hosts.yml.'] }}"
+  when: (preflight_group_hosts | length) == 0
+
+- name: Check ansible_host exists for each target host
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ansible_host is missing for host ' ~ item ~ '.'] }}"
+  loop: "{{ preflight_group_hosts }}"
+  vars:
+    preflight_target_hostvars: "{{ hostvars[item] | default({}) }}"
+  when: preflight_target_hostvars.ansible_host is not defined
+
+- name: Check ansible_host is not placeholder or loopback
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ansible_host for ' ~ item ~ ' is placeholder or unusable: ' ~ (preflight_target_hostvars.ansible_host | string) ~ '.'] }}"
+  loop: "{{ preflight_group_hosts }}"
+  vars:
+    preflight_target_hostvars: "{{ hostvars[item] | default({}) }}"
+  when:
+    - preflight_target_hostvars.ansible_host is defined
+    - (preflight_target_hostvars.ansible_host | string) in ['203.0.113.10', '0.0.0.0', '127.0.0.1', 'localhost']
+
+- name: Check ansible_user exists for each target host
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ansible_user is missing for host ' ~ item ~ '. Define the steady-state SSH user used after bootstrap.'] }}"
+  loop: "{{ preflight_group_hosts }}"
+  vars:
+    preflight_target_hostvars: "{{ hostvars[item] | default({}) }}"
+  when: preflight_target_hostvars.ansible_user is not defined or (preflight_target_hostvars.ansible_user | string | trim) == ''
+
+- name: Check bootstrap_ansible_user exists for each target host
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['bootstrap_ansible_user is missing for host ' ~ item ~ '. Define the initial SSH user Ansible should use for playbooks/bootstrap-ovh.yml.'] }}"
+  loop: "{{ preflight_group_hosts }}"
+  vars:
+    preflight_target_hostvars: "{{ hostvars[item] | default({}) }}"
+  when: preflight_target_hostvars.bootstrap_ansible_user is not defined or (preflight_target_hostvars.bootstrap_ansible_user | string | trim) == ''
+
+- name: Check base domain
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['base_domain is unset or still placeholder: ' ~ (base_domain | string) ~ '.'] }}"
+  when: base_domain is not defined or (base_domain | string | trim) == '' or 'example.invalid' in (base_domain | string)
+
+- name: Check ops domain
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ops_domain is unset or still placeholder: ' ~ (ops_domain | string) ~ '.'] }}"
+  when: ops_domain is not defined or (ops_domain | string | trim) == '' or 'example.invalid' in (ops_domain | string)
+
+- name: Check domain separation warning
+  ansible.builtin.set_fact:
+    preflight_warnings: "{{ preflight_warnings + ['ops_domain currently equals base_domain. This is allowed, but it weakens operational separation and DNS hygiene.'] }}"
+  when:
+    - base_domain is defined
+    - ops_domain is defined
+    - (base_domain | string) == (ops_domain | string)
+
+- name: Check SSH public keys list
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ssh_pubkeys is empty or still contains placeholder content.'] }}"
+  when: ssh_pubkeys is not defined or (ssh_pubkeys | length) == 0 or (ssh_pubkeys | join(' ')) is search('REPLACE_ME')
+
+- name: Check target Ubuntu release selection
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ovh_bootstrap_ubuntu_release must be jammy or noble. Current value: ' ~ (ovh_bootstrap_ubuntu_release | string) ~ '.'] }}"
+  when: ovh_bootstrap_ubuntu_release is not defined or (ovh_bootstrap_ubuntu_release | string) not in ['jammy', 'noble']
+
+- name: Check HTTPS firewall path
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ufw_allowed_tcp_public must include 443 so Traefik can terminate HTTPS for LiveSync clients.'] }}"
+  when: ufw_allowed_tcp_public is not defined or 443 not in (ufw_allowed_tcp_public | list)
+
+- name: Check ops user
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['ops_user is unset or invalid.'] }}"
+  when: ops_user is not defined or (ops_user | string | trim) == ''
+
+- name: Check Traefik ACME email
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['traefik_acme_email is unset or placeholder: ' ~ (traefik_acme_email | string) ~ '.'] }}"
+  when: traefik_acme_email is not defined or '@' not in (traefik_acme_email | string) or 'example.invalid' in (traefik_acme_email | string) or 'change-me@' in (traefik_acme_email | string)
+
+- name: Check ACME DNS provider
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['acme_dns_provider is unset.'] }}"
+  when: acme_dns_provider is not defined or (acme_dns_provider | string | trim) == ''
+
+- name: Check ACME env exists
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['acme_env is empty. DNS-01 certificate issuance cannot work without provider credentials.'] }}"
+  when: acme_env is not defined or (acme_env | length) == 0
+
+- name: Check ACME env placeholder values
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['acme_env still contains placeholder values. Replace all REPLACE_ME entries with real DNS provider credentials.'] }}"
+  when:
+    - acme_env is defined
+    - (acme_env | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check CouchDB admin credentials
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['couchdb_admin_user or couchdb_admin_password is unset or placeholder.'] }}"
+  when: couchdb_admin_user is not defined or couchdb_admin_password is not defined or (couchdb_admin_user | string | trim) == '' or (couchdb_admin_password | string | trim) == '' or 'REPLACE_ME' in (couchdb_admin_password | string)
+
+- name: Check human vault definitions exist
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain exactly the human vault definitions needed for this deployment.'] }}"
+  when: couchdb_vaults is not defined or (couchdb_vaults | length) < 3
+
+- name: Check required human vault names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['couchdb_vaults is missing one or more required entries: you, kid1, kid2.'] }}"
+  when:
+    - couchdb_vaults is defined
+    - (preflight_required_human_vault_names | difference(couchdb_vaults | map(attribute='name') | list) | length) > 0
+
+- name: Check duplicate human vault names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Duplicate human vault names found in couchdb_vaults. Names must be unique.'] }}"
+  when:
+    - couchdb_vaults is defined
+    - ((couchdb_vaults | map(attribute='name') | list | unique | length) != (couchdb_vaults | map(attribute='name') | list | length))
+
+- name: Check duplicate human vault db names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB db_name values found in couchdb_vaults.'] }}"
+  when:
+    - couchdb_vaults is defined
+    - ((couchdb_vaults | map(attribute='db_name') | list | unique | length) != (couchdb_vaults | map(attribute='db_name') | list | length))
+
+- name: Check duplicate human vault users
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB user values found in couchdb_vaults.'] }}"
+  when:
+    - couchdb_vaults is defined
+    - ((couchdb_vaults | map(attribute='user') | list | unique | length) != (couchdb_vaults | map(attribute='user') | list | length))
+
+- name: Check human vault placeholders
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['One or more couchdb_vaults entries still contains placeholder password values.'] }}"
+  when:
+    - couchdb_vaults is defined
+    - (couchdb_vaults | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check expected agent vault set
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['agent_vaults does not match the expected set: aegis, helios, relay, quartermaster.'] }}"
+  when:
+    - agent_vaults is not defined or (agent_vaults | sort) != (preflight_expected_agent_vaults | sort)
+
+- name: Check duplicate agent vault names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['agent_vaults contains duplicate values.'] }}"
+  when:
+    - agent_vaults is defined
+    - ((agent_vaults | unique | length) != (agent_vaults | length))
+
+- name: Check path collisions between vault_root and exports_root
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['vault_root and exports_root must be different paths.'] }}"
+  when:
+    - vault_root is defined
+    - exports_root is defined
+    - (vault_root | string) == (exports_root | string)
+
+- name: Check restic repositories set
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_repo_h4f and restic_repo_laptop must both be set to non-placeholder repository targets.'] }}"
+  when: restic_repo_h4f is not defined or restic_repo_laptop is not defined or 'example.invalid' in (restic_repo_h4f | string) or 'laptop.tailnet' in (restic_repo_laptop | string)
+
+- name: Check restic passwords set
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_password_h4f and/or restic_password_laptop is unset or placeholder.'] }}"
+  when: restic_password_h4f is not defined or restic_password_laptop is not defined or 'REPLACE_ME' in (restic_password_h4f | string) or 'REPLACE_ME' in (restic_password_laptop | string)
+
+- name: Check restic backup path list
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_backup_paths is empty. There would be nothing to back up.'] }}"
+  when: restic_backup_paths is not defined or (restic_backup_paths | length) == 0
+
+- name: Check Tailscale auth key
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_auth_key is unset or placeholder.'] }}"
+  when: tailscale_auth_key is not defined or (tailscale_auth_key | string | trim) == '' or 'REPLACE_ME' in (tailscale_auth_key | string)
+
+- name: Check Tailscale hostname
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_hostname is unset.'] }}"
+  when: tailscale_hostname is not defined or (tailscale_hostname | string | trim) == ''
+
+- name: Check Tailscale tag format warning
+  ansible.builtin.set_fact:
+    preflight_warnings: "{{ preflight_warnings + ['tailscale_tags entries should usually use the tag: prefix, e.g. tag:core. Current value set may need review.'] }}"
+  when:
+    - tailscale_tags is defined
+    - (tailscale_tags | length) > 0
+    - ((tailscale_tags | select('match', '^tag:') | list | length) != (tailscale_tags | length))
+
+- name: Check for placeholder strings across key variables
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Placeholder markers remain in inventory variables. Replace REPLACE_ME, example.invalid, and other draft values before deployment.'] }}"
+  when: |
+    'REPLACE_ME' in (preflight_inventory_dump ~ (vars | to_nice_yaml)) or
+    'example.invalid' in (preflight_inventory_dump ~ (vars | to_nice_yaml)) or
+    'change-me@' in (preflight_inventory_dump ~ (vars | to_nice_yaml))
+
+- name: Probe target hosts with ping without hard fail
+  ansible.builtin.ping:
+  delegate_to: "{{ item }}"
+  vars:
+    ansible_user: "{{ hostvars[item].bootstrap_ansible_user | default(hostvars[item].ansible_user | default(omit)) }}"
+  loop: "{{ preflight_group_hosts }}"
+  register: preflight_ping_results
+  ignore_unreachable: true
+  ignore_errors: true
+  when: preflight_validate_remote_connectivity | bool
+
+- name: Record remote connectivity failures
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Remote connectivity check failed for ' ~ item.item ~ ' using bootstrap_ansible_user/ansible_user. SSH auth, network reachability, or host key trust is not ready for Ansible execution on the target host.'] }}"
+  loop: "{{ preflight_ping_results.results | default([]) }}"
+  when:
+    - preflight_validate_remote_connectivity | bool
+    - item is failed or (item.unreachable | default(false))
+
+- name: Build aggregated preflight report content
+  ansible.builtin.set_fact:
+    preflight_report: |
+      CrownOps OVH Core Preflight Report
+      =================================
+      Target group: {{ preflight_target_group }}
+      Hosts: {{ preflight_group_hosts | join(', ') if (preflight_group_hosts | length) > 0 else 'none' }}
+      base_domain: {{ base_domain | default('UNSET') }}
+      ops_domain: {{ ops_domain | default('UNSET') }}
+      Generated: {{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}
+
+      Errors ({{ preflight_errors | length }})
+      {% if preflight_errors | length == 0 %}
+      - none
+      {% else %}
+      {% for item in preflight_errors %}
+      - {{ item }}
+      {% endfor %}
+      {% endif %}
+
+      Warnings ({{ preflight_warnings | length }})
+      {% if preflight_warnings | length == 0 %}
+      - none
+      {% else %}
+      {% for item in preflight_warnings %}
+      - {{ item }}
+      {% endfor %}
+      {% endif %}
+
+- name: Ensure local report directory exists
+  ansible.builtin.file:
+    path: "{{ preflight_local_report_dir }}"
+    state: directory
+    mode: '0755'
+  when: preflight_write_local_report | bool
+
+- name: Write local preflight report
+  ansible.builtin.copy:
+    content: "{{ preflight_report }}"
+    dest: "{{ preflight_local_report_dir }}/{{ preflight_local_report_file }}"
+    mode: '0644'
+  when: preflight_write_local_report | bool
+
+- name: Show aggregated preflight warnings
+  ansible.builtin.debug:
+    msg: "{{ preflight_warnings }}"
+  when: (preflight_warnings | length) > 0
+
+- name: Show aggregated preflight errors
+  ansible.builtin.debug:
+    msg: "{{ preflight_errors }}"
+  when: (preflight_errors | length) > 0
+
+- name: Fail after full preflight if any errors were found
+  ansible.builtin.fail:
+    msg: |
+      Preflight failed with {{ preflight_errors | length }} error(s).
+      Review the aggregated report at {{ preflight_local_report_dir }}/{{ preflight_local_report_file }}.
+      Errors:
+      {% for item in preflight_errors %}
+      - {{ item }}
+      {% endfor %}
+  when: (preflight_errors | length) > 0

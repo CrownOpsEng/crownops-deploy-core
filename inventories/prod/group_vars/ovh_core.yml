@@ -1,0 +1,23 @@
+---
+base_packages:
+  - curl
+  - wget
+  - git
+  - rsync
+  - jq
+  - unzip
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - python3-pip
+  - ufw
+  - fail2ban
+  - acl
+  - moreutils
+
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin

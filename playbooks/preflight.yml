@@ -1,0 +1,9 @@
+---
+- name: Preflight validation for OVH core deployment
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  roles:
+    - role: preflight_validate
+      tags: [preflight, validate]

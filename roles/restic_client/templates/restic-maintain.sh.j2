@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+TARGET="${1:-h4f}"
+case "$TARGET" in
+  h4f)
+    source /opt/crownops-backup/restic-h4f.env
+    ;;
+  laptop)
+    source /opt/crownops-backup/restic-laptop.env
+    ;;
+  *)
+    echo "Usage: $0 [h4f|laptop]" >&2
+    exit 1
+    ;;
+esac
+
+restic forget --prune \
+  --keep-daily {{ restic_retention_daily }} \
+  --keep-weekly {{ restic_retention_weekly }} \
+  --keep-monthly {{ restic_retention_monthly }}

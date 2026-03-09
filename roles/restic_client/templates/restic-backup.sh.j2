@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+TARGET="${1:-h4f}"
+case "$TARGET" in
+  h4f)
+    source /opt/crownops-backup/restic-h4f.env
+    ;;
+  laptop)
+    source /opt/crownops-backup/restic-laptop.env
+    ;;
+  *)
+    echo "Usage: $0 [h4f|laptop]" >&2
+    exit 1
+    ;;
+esac
+
+restic snapshots >/dev/null 2>&1 || restic init
+restic backup {% for p in restic_backup_paths %} {{ p }}{% endfor %}

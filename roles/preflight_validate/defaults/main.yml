@@ -1,0 +1,19 @@
+---
+preflight_validate_remote_connectivity: true
+preflight_write_local_report: true
+preflight_local_report_dir: "{{ playbook_dir }}/../reports"
+preflight_local_report_file: "preflight-{{ preflight_target_group }}.txt"
+preflight_target_group: ovh_core
+preflight_placeholder_patterns:
+  - REPLACE_ME
+  - example.invalid
+  - change-me@
+preflight_expected_agent_vaults:
+  - aegis
+  - helios
+  - relay
+  - quartermaster
+preflight_required_human_vault_names:
+  - you
+  - kid1
+  - kid2

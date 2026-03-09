@@ -1,0 +1,75 @@
+---
+project_name: crownops-ovh-core
+base_domain: example.invalid
+ops_domain: ops.example.invalid
+
+timezone: America/Edmonton
+ovh_bootstrap_ubuntu_release: jammy
+
+ops_user: deploy
+ops_group: deploy
+
+ssh_pubkeys:
+  - "ssh-ed25519 REPLACE_ME"
+
+ufw_allowed_tcp_public: [22, 443]
+ufw_allowed_udp_public: []
+
+traefik_dir: /opt/traefik
+traefik_network_name: proxy
+internal_network_name: internal
+traefik_acme_email: change-me@example.invalid
+traefik_certresolver_name: dnsresolver
+traefik_acme_storage: /opt/traefik/acme/acme.json
+acme_dns_provider: cloudflare
+# Example env variable names only. Fill with real provider values.
+acme_env:
+  CF_DNS_API_TOKEN: "REPLACE_ME"
+
+couchdb_dir: /opt/couchdb
+couchdb_container_name: couchdb
+couchdb_admin_user: admin
+couchdb_admin_password: "REPLACE_ME"
+couchdb_bind_host: 127.0.0.1
+couchdb_port: 5984
+couchdb_vaults:
+  - name: you
+    db_name: vault_you
+    user: vault_you_user
+    password: "REPLACE_ME"
+  - name: kid1
+    db_name: vault_kid1
+    user: vault_kid1_user
+    password: "REPLACE_ME"
+  - name: kid2
+    db_name: vault_kid2
+    user: vault_kid2_user
+    password: "REPLACE_ME"
+
+vault_root: /srv/crownops/vaults
+exports_root: /srv/crownops/exports
+agent_vaults:
+  - aegis
+  - helios
+  - relay
+  - quartermaster
+
+restic_repo_h4f: sftp:backup@h4f.example.invalid:/srv/restic/ovh-core
+restic_repo_laptop: sftp:backup@laptop.tailnet:/srv/restic/ovh-core
+restic_password_h4f: "REPLACE_ME"
+restic_password_laptop: "REPLACE_ME"
+restic_backup_paths:
+  - /opt/traefik
+  - /opt/couchdb
+  - /srv/crownops
+  - /etc/ssh
+  - /etc/fail2ban
+  - /etc/ufw
+
+restic_retention_daily: 14
+restic_retention_weekly: 8
+restic_retention_monthly: 6
+
+tailscale_auth_key: "REPLACE_ME"
+tailscale_hostname: ovh-core-01
+tailscale_tags: []

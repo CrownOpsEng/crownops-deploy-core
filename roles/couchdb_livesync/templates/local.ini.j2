@@ -1,0 +1,15 @@
+[chttpd]
+bind_address = 0.0.0.0
+port = 5984
+require_valid_user = true
+
+[chttpd_auth]
+require_valid_user = true
+
+[cors]
+credentials = true
+origins = app://obsidian.md,capacitor://localhost,https://notes.{{ ops_domain }}
+enable_cors = true
+
+[admins]
+{{ couchdb_admin_user }} = {{ couchdb_admin_password }}

@@ -1,0 +1,23 @@
+---
+- name: Create agent vault directories
+  ansible.builtin.file:
+    path: "{{ vault_root }}/agents/{{ item }}"
+    state: directory
+    owner: "{{ ops_user }}"
+    group: "{{ ops_group }}"
+    mode: '0750'
+  loop: "{{ agent_vaults }}"
+
+- name: Seed agent vault README files
+  ansible.builtin.copy:
+    dest: "{{ vault_root }}/agents/{{ item }}/README.md"
+    owner: "{{ ops_user }}"
+    group: "{{ ops_group }}"
+    mode: '0640'
+    content: |
+      # {{ item | title }} Vault
+
+      Purpose: agent working vault.
+      Type: plain markdown on disk.
+      Notes: not part of the human LiveSync backend.
+  loop: "{{ agent_vaults }}"

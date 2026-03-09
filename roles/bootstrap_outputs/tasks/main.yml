@@ -1,0 +1,29 @@
+---
+- name: Create handoff directory
+  ansible.builtin.file:
+    path: /root/crownops-handoff
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Render human vault handoff summary
+  ansible.builtin.copy:
+    dest: /root/crownops-handoff/HUMAN_VAULT_HANDOFF.md
+    owner: root
+    group: root
+    mode: '0600'
+    content: |
+      # Human Vault Handoff
+
+      Base URL: https://notes.{{ ops_domain }}
+
+      {% for v in couchdb_vaults %}
+      ## {{ v.name }}
+      - DB name: {{ v.db_name }}
+      - CouchDB username: {{ v.user }}
+      - Password: {{ v.password }}
+      - Final LiveSync encryption passphrase: user-owned and not stored here by design.
+
+      {% endfor %}
+  no_log: true

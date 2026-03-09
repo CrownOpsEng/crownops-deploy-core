@@ -1,0 +1,9 @@
+---
+- name: Configure backup jobs
+  hosts: ovh_core
+  become: true
+  roles:
+    - role: restic_client
+      tags: [backup, restic]
+    - role: systemd_timers
+      tags: [backup, timers]

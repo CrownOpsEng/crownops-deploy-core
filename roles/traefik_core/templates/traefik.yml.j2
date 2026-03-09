@@ -1,0 +1,22 @@
+entryPoints:
+  websecure:
+    address: ":443"
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    directory: "/dynamic"
+    watch: true
+api:
+  dashboard: false
+certificatesResolvers:
+  {{ traefik_certresolver_name }}:
+    acme:
+      email: {{ traefik_acme_email | quote }}
+      storage: {{ traefik_acme_storage | quote }}
+      dnsChallenge:
+        provider: {{ acme_dns_provider | quote }}
+log:
+  level: INFO
+accessLog: {}

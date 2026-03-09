@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BASE_URL="https://notes.{{ ops_domain }}"
+ADMIN_USER="{{ couchdb_admin_user }}"
+ADMIN_PASS="{{ couchdb_admin_password }}"
+
+wait_for_couchdb() {
+  until curl -fsS -u "$ADMIN_USER:$ADMIN_PASS" "$BASE_URL/_up" >/dev/null; do
+    sleep 2
+  done
+}
+
+create_user_and_db() {
+  local db="$1"
+  local user="$2"
+  local pass="$3"
+
+  curl -fsS -u "$ADMIN_USER:$ADMIN_PASS" -X PUT "$BASE_URL/_users/org.couchdb.user:$user" \
+    -H 'Content-Type: application/json' \
+    -d "{\"name\":\"$user\",\"password\":\"$pass\",\"roles\":[],\"type\":\"user\"}" || true
+
+  curl -fsS -u "$ADMIN_USER:$ADMIN_PASS" -X PUT "$BASE_URL/$db" || true
+
+  curl -fsS -u "$ADMIN_USER:$ADMIN_PASS" -X PUT "$BASE_URL/$db/_security" \
+    -H 'Content-Type: application/json' \
+    -d "{\"admins\":{\"names\":[\"$user\"],\"roles\":[]},\"members\":{\"names\":[\"$user\"],\"roles\":[]}}"
+}
+
+wait_for_couchdb
+{% for v in couchdb_vaults %}
+create_user_and_db "{{ v.db_name }}" "{{ v.user }}" "{{ v.password }}"
+{% endfor %}
