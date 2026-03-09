@@ -25,6 +25,7 @@ Environment:
   ANSIBLE_CONFIG_WIZARD_PROJECT  Override the sibling wizard repo path
   ANSIBLE_CONFIG_WIZARD_BIN      Run an already-installed wizard binary instead
   ANSIBLE_CONFIG_WIZARD_STATE_HOME  Override where wizard state and generated bootstrap keys are stored
+  ANSIBLE_CONFIG_WIZARD_SSH_HOME  Override where managed SSH keys are stored
 
 The repo profile and repo root are provided by this wrapper automatically.
 EOF
