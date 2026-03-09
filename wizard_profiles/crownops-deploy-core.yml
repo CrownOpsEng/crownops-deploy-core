@@ -175,6 +175,7 @@ sections:
         default: notes
       - id: traefik_acme_email
         label: ACME email
+        help: TLS certificate contact email for Let's Encrypt / ACME account registration
         required: true
       - id: acme_dns_provider
         label: ACME DNS provider
