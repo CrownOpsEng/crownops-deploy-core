@@ -104,9 +104,13 @@ sections:
         when: "ssh_setup_mode == 'use_existing_public_keys'"
         required: true
     actions:
-      - kind: pause
+      - kind: ssh_setup
         when: "ssh_setup_mode == 'generate_managed_key'"
         save_state: true
+        host_template: "{{ ansible_host }}"
+        ssh_user_template: "{{ bootstrap_ansible_user }}"
+        public_key_path_template: "{{ managed_ssh_keypair.public_key_path }}"
+        private_key_path_template: "{{ managed_ssh_keypair.private_key_path }}"
         message_template: |
           A managed Ansible SSH key pair is ready for {{ host_name }}.
 
@@ -118,16 +122,14 @@ sections:
             {{ managed_ssh_keypair.fingerprint }}
 
           Next steps on your control machine:
-            ssh-copy-id -i {{ managed_ssh_keypair.public_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
-            ssh -i {{ managed_ssh_keypair.private_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
+            Use the exact commands printed below or the generated commands file.
+            They disable agent-based key offers to avoid "Too many authentication failures".
 
           After you confirm access works, resume the wizard:
             ./scripts/configure.sh --answers-file {{ wizard_resume_state_path }}
-        commands_template: |
-          ssh-copy-id -i {{ managed_ssh_keypair.public_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
-          ssh -i {{ managed_ssh_keypair.private_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
-          ./scripts/configure.sh --answers-file {{ wizard_resume_state_path }}
-        prompt: Pause after installing and testing managed SSH access?
+          You can let the wizard install this key now by entering the current password once.
+          The password is used only for this immediate local install step and is not written to inventory, logs, or resume state.
+        prompt: How do you want to set up managed SSH access?
   - id: general
     title: General Deployment Settings
     fields:

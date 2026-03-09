@@ -43,7 +43,8 @@ It will:
 - collect or generate configuration interactively
 - generate or reuse a managed Ed25519 Ansible SSH key under `~/.ssh/ansible-config-wizard/` when you do not already have authorized keys ready
 - write `ansible_ssh_private_key_file` into local inventory when it manages that key for you
-- pause with exact `ssh-copy-id` and `ssh -i` guidance so you can install and test access before continuing
+- optionally install that managed key immediately by prompting once for the current bootstrap account password
+- if you prefer, pause with exact `ssh-copy-id` and `ssh -i` guidance so you can install and test access before continuing
 - write a 0600 resume-state file only when you actually pause and exit
 - write inventory, non-secret settings, and local secret material
 - optionally write a sensitive details file
@@ -116,6 +117,7 @@ At minimum set:
 Notes:
 
 - when the wizard manages an SSH key for you, it stores that long-term key under `~/.ssh/ansible-config-wizard/<repo>/`, points local inventory at it with `ansible_ssh_private_key_file`, and pauses before the rest of the questions so you can install the public key on the host and verify access
+- the automatic managed-key install path disables agent-based key offers so it avoids the common `Too many authentication failures` failure mode caused by clients offering every key from `ssh-agent`
 - resume a paused run with `./scripts/configure.sh --answers-file <saved-state.yml>`
 - after a successful resumed run, the wizard best-effort securely deletes its own temporary resume-state file
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set

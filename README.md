@@ -54,7 +54,7 @@ Public repo hygiene:
 - tracked files end in `.example`
 - real local inventory and vars stay untracked
 - `scripts/configure.sh` is the preferred local config entrypoint
-- on a first run, `scripts/configure.sh` can generate or reuse a managed Ed25519 Ansible key under `~/.ssh/ansible-config-wizard/`, write `ansible_ssh_private_key_file` into local inventory, pause, show the exact `ssh-copy-id` and test commands to run, and then resume from a saved answers file
+- on a first run, `scripts/configure.sh` can generate or reuse a managed Ed25519 Ansible key under `~/.ssh/ansible-config-wizard/`, write `ansible_ssh_private_key_file` into local inventory, and either install that key automatically with a one-shot password prompt or pause with exact commands and resume guidance
 - the shared wizard implementation lives outside this repo; this repo only carries the profile, templates, and builder hook
 - `scripts/init-local-config.sh` remains available as a simple scaffold-from-examples fallback
 
