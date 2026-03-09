@@ -193,10 +193,17 @@
     preflight_errors: "{{ preflight_errors + ['restic_backup_paths is empty. There would be nothing to back up.'] }}"
   when: restic_backup_paths is not defined or (restic_backup_paths | length) == 0
 
-- name: Check Tailscale auth key
+- name: Warn when Tailscale join is manual
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['tailscale_auth_key is unset or placeholder.'] }}"
-  when: tailscale_auth_key is not defined or (tailscale_auth_key | string | trim) == '' or 'REPLACE_ME' in (tailscale_auth_key | string)
+    preflight_warnings: "{{ preflight_warnings + ['tailscale_auth_key is blank. Bootstrap will install Tailscale but you must join manually before running restrictive lockdown.'] }}"
+  when: tailscale_auth_key is not defined or (tailscale_auth_key | string | trim) == ''
+
+- name: Check Tailscale auth key placeholder
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_auth_key still contains placeholder content. Set a real auth key or leave it blank for manual join.'] }}"
+  when:
+    - tailscale_auth_key is defined
+    - "'REPLACE_ME' in (tailscale_auth_key | string)"
 
 - name: Check Tailscale hostname
   ansible.builtin.set_fact:
@@ -210,6 +217,34 @@
     - tailscale_tags is defined
     - (tailscale_tags | length) > 0
     - ((tailscale_tags | select('match', '^tag:') | list | length) != (tailscale_tags | length))
+
+- name: Check lockdown confirmation gate consistency
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['lockdown_confirmed=true requires lockdown_enabled=true.'] }}"
+  when:
+    - lockdown_confirmed | default(false) | bool
+    - not (lockdown_enabled | default(false) | bool)
+
+- name: Check lockdown mode
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['lockdown_mode must be tailscale_interface or allowed_cidrs. Current value: ' ~ (lockdown_mode | string) ~ '.'] }}"
+  when:
+    - lockdown_mode is defined
+    - (lockdown_mode | string) not in ['tailscale_interface', 'allowed_cidrs']
+
+- name: Check lockdown allowed CIDRs
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['lockdown_allowed_cidrs must contain at least one CIDR when lockdown_mode=allowed_cidrs.'] }}"
+  when:
+    - (lockdown_mode | default('tailscale_interface') | string) == 'allowed_cidrs'
+    - lockdown_allowed_cidrs is not defined or (lockdown_allowed_cidrs | length) == 0
+
+- name: Check lockdown probe host when enabled
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['lockdown_control_host_probe_host must be set when lockdown_control_host_probe_enabled=true.'] }}"
+  when:
+    - lockdown_control_host_probe_enabled | default(false) | bool
+    - lockdown_control_host_probe_host is not defined or (lockdown_control_host_probe_host | string | trim) == ''
 
 - name: Check for placeholder strings across key variables
   ansible.builtin.set_fact:

@@ -17,7 +17,6 @@ This file states exactly what is done, what is not done, and what gaps remain.
   - `features/obsidian.yml`
 - Roles created:
   - `core_layout`
-  - `network_lockdown`
   - `preflight_validate`
 - Wrapper scripts created:
   - `scripts/install-collections.sh`
@@ -29,7 +28,6 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - No environment-specific production values are filled
 - No live host deployment has been validated end-to-end
 - No certificate issuance has been validated
-- No CouchDB bootstrap execution is automated in a proven-safe idempotent way
 - No Android Obsidian LiveSync validation has been run
 - No kid vault handoff process has been validated in practice
 - No Tailscale ACL or tag policy is implemented beyond variable placeholders
@@ -38,7 +36,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - No additional feature stacks are included yet
 - No Ansible Vault files are included
 - The services collection has not yet been validated by a second consuming site repo
-- No live Tailscale-validated SSH lockdown has been executed yet
+- No live staged SSH lockdown has been executed yet
 
 ## Gaps that must be filled before deployment
 
@@ -50,7 +48,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 6. Join the host to Tailscale with the real auth approach you want.
 7. Prepare the primary and secondary backup targets.
 8. Decide how you will store LiveSync passphrases.
-9. Run and validate the package in a controlled sequence.
+9. Run and validate the package in a controlled sequence, including the staged SSH lockdown.
 
 ## Resume point without analysis
 
@@ -62,4 +60,5 @@ If you come back cold, do this in order:
 5. Run `playbooks/bootstrap.yml`.
 6. Run `playbooks/site.yml`.
 7. Run `playbooks/backup.yml`.
-8. Manually validate HTTPS, CouchDB, LiveSync, and backups.
+8. Validate Tailscale access and then run `./scripts/lockdown.sh --confirm`.
+9. Manually validate HTTPS, CouchDB, LiveSync, and backups.

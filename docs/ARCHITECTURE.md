@@ -7,6 +7,7 @@ This repo is the environment-specific deployment layer for remote hosts.
 ## Dependency layers
 
 - fresh-host bootstrap delegated to `crownops.deploy_base`
+- staged network lockdown delegated to `crownops.deploy_base`
 - reusable service and backup stacks delegated to `crownops.deploy_services`
 - site-local layout and readiness validation kept in this repo
 
@@ -25,7 +26,7 @@ Current feature set:
 
 `playbooks/backup.yml` uses the `crownops.deploy_services.restic_host_backups` role.
 
-`playbooks/lockdown.yml` is a site-local post-bootstrap hardening step that keeps SSH on Tailscale while removing public SSH when configured.
+`playbooks/lockdown.yml` consumes the reusable `crownops.deploy_base.network_lockdown` role so SSH lockdown policy stays consistent across site repos.
 
 This keeps the site repo thin while still allowing features to evolve independently.
 

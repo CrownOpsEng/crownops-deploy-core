@@ -3,5 +3,5 @@
   hosts: core_hosts
   become: true
   roles:
-    - role: network_lockdown
+    - role: crownops.deploy_base.network_lockdown
       tags: [lockdown, ssh, tailscale, firewall]

@@ -4,6 +4,7 @@ Modular Ansible deployment repo for CrownOps remote environments.
 
 This repo is the environment-facing deployment layer:
 - consume the shared `crownops.deploy_base` collection for fresh-host bootstrap
+- consume the shared `crownops.deploy_base` collection for staged post-join SSH lockdown
 - consume the shared `crownops.deploy_services` collection for reusable service stacks and host backup automation
 - keep inventory, deployment flow, and feature wiring separate from the reusable collections
 - let features such as Obsidian be enabled, disabled, or replaced without rewriting the base deployment path
@@ -44,6 +45,7 @@ Public repo hygiene:
 
 Quality controls:
 - GitHub Actions CI scaffolds example local config, installs collections from GitHub, and syntax-checks the site playbooks
+- staged lockdown uses explicit enable and confirm gates plus break-glass support, so a casual deploy run does not remove public SSH
 
 Use this before:
 - `playbooks/bootstrap.yml`

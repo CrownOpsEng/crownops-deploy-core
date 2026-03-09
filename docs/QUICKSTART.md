@@ -34,7 +34,7 @@ It will:
 - bootstrap a brand new host when needed
 - deploy enabled features
 - configure backup jobs
-- optionally run SSH lockdown when you pass `--lockdown`
+- optionally run the staged SSH lockdown phase when you pass `--enable-lockdown`
 
 By default it prompts before each phase. Use `--yes` for unattended execution.
 
@@ -65,18 +65,24 @@ At minimum set:
 - `bootstrap_target_ubuntu_release`
 - `ssh_pubkeys`
 - DNS and ACME values if HTTPS-backed features are enabled
-- CouchDB credentials if Obsidian is enabled
+- CouchDB structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
 - backup target credentials
-- Tailscale values if Tailscale is enabled
+- Tailscale hostname/tags in `all.yml` and optional auth key in `vault.yml`
 
 Notes:
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
-- if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh` after confirming SSH over Tailscale works
+- if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works
 - backup transport supports SSH keys by setting the `restic_*_ssh_private_key` and `restic_*_ssh_known_hosts` variables
+- staged SSH lockdown is two-phase: `--enable-lockdown` runs the phase, `--confirm-lockdown` is required before public SSH can actually be removed
+- break-glass file `lockdown_break_glass_file` short-circuits restrictive changes if recovery is needed
 
 ## Secrets
 
 Put secret values in `inventories/prod/group_vars/vault.yml`, then encrypt that file with Ansible Vault before the first real deployment.
+
+Recommended split:
+- `all.yml`: domains, feature flags, ports, paths, usernames, and other non-secret structure
+- `vault.yml`: passwords, SSH private keys, pinned `known_hosts`, and optional `tailscale_auth_key`
 
 ## Manual phase commands
 
@@ -89,7 +95,7 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/site.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/backup.yml
-ansible-playbook -i inventories/prod/hosts.yml playbooks/lockdown.yml
+ansible-playbook -i inventories/prod/hosts.yml playbooks/lockdown.yml -e lockdown_enabled=true -e lockdown_confirmed=true
 ```
 
 ## Feature model

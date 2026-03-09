@@ -13,15 +13,19 @@
 # - keep only secret values here and include them with inventory loading
 
 # Secret overrides:
-couchdb_admin_password: "REPLACE_ME"
-restic_password_primary: "REPLACE_ME"
-restic_password_secondary: "REPLACE_ME"
-restic_primary_ssh_private_key: |
+vault_couchdb_admin_password: "REPLACE_ME"
+vault_couchdb_vault_passwords:
+  you: "REPLACE_ME"
+  kid1: "REPLACE_ME"
+  kid2: "REPLACE_ME"
+vault_restic_password_primary: "REPLACE_ME"
+vault_restic_password_secondary: "REPLACE_ME"
+vault_restic_primary_ssh_private_key: |
   REPLACE_ME
-restic_primary_ssh_known_hosts: |
+vault_restic_primary_ssh_known_hosts: |
   REPLACE_ME
-restic_secondary_ssh_private_key: |
+vault_restic_secondary_ssh_private_key: |
   REPLACE_ME
-restic_secondary_ssh_known_hosts: |
+vault_restic_secondary_ssh_known_hosts: |
   REPLACE_ME
-tailscale_auth_key: "REPLACE_ME"
+vault_tailscale_auth_key: ""

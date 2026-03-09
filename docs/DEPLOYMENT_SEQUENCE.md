@@ -26,19 +26,19 @@ This installs:
 
 ## 3. Run preflight
 
-`ansible-playbook playbooks/preflight.yml`
+`ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml`
 
 ## 4. Bootstrap the fresh host
 
-`ansible-playbook playbooks/bootstrap.yml`
+`ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml`
 
 ## 5. Deploy enabled features
 
-`ansible-playbook playbooks/site.yml`
+`ansible-playbook -i inventories/prod/hosts.yml playbooks/site.yml`
 
 ## 6. Configure backup jobs
 
-`ansible-playbook playbooks/backup.yml`
+`ansible-playbook -i inventories/prod/hosts.yml playbooks/backup.yml`
 
 ## 7. Validate manually
 
@@ -52,11 +52,19 @@ This installs:
 - restic backup to the primary target works
 - restic backup to the secondary target works when reachable
 
-## 8. Lock down public SSH after Tailscale access is confirmed
+## 8. Run staged SSH lockdown after Tailscale access is confirmed
 
-`ansible-playbook playbooks/lockdown.yml`
+Validation-only phase:
+`./scripts/lockdown.sh --phase1-only`
 
-This allows SSH on `tailscale0` first, then removes public SSH when `lockdown_disable_public_ssh` is enabled.
+Restrictive phase:
+`./scripts/lockdown.sh --confirm`
+
+This phase:
+- requires both `lockdown_enabled=true` and `lockdown_confirmed=true`
+- short-circuits when `lockdown_break_glass_file` exists
+- verifies `tailscale0`, `tailscale status --json`, and a Tailscale IPv4 address before broad SSH removal
+- allows SSH on `tailscale0` or configured CIDRs first, then removes public SSH when `lockdown_disable_public_ssh` is enabled
 
 ## 9. Handoff kid vaults
 

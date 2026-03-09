@@ -32,22 +32,22 @@ acme_env:
 couchdb_dir: /opt/couchdb
 couchdb_container_name: couchdb
 couchdb_admin_user: admin
-couchdb_admin_password: "REPLACE_ME"
+couchdb_admin_password: "{{ vault_couchdb_admin_password }}"
 couchdb_bind_host: 127.0.0.1
 couchdb_port: 5984
 couchdb_vaults:
   - name: you
     db_name: vault_you
     user: vault_you_user
-    password: "REPLACE_ME"
+    password: "{{ vault_couchdb_vault_passwords.you }}"
   - name: kid1
     db_name: vault_kid1
     user: vault_kid1_user
-    password: "REPLACE_ME"
+    password: "{{ vault_couchdb_vault_passwords.kid1 }}"
   - name: kid2
     db_name: vault_kid2
     user: vault_kid2_user
-    password: "REPLACE_ME"
+    password: "{{ vault_couchdb_vault_passwords.kid2 }}"
 
 vault_root: /srv/crownops/vaults
 exports_root: /srv/crownops/exports
@@ -59,13 +59,13 @@ agent_vaults:
 
 restic_repo_primary: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
 restic_repo_secondary: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
-restic_password_primary: "REPLACE_ME"
-restic_password_secondary: "REPLACE_ME"
-restic_primary_ssh_private_key: ""
-restic_primary_ssh_known_hosts: ""
+restic_password_primary: "{{ vault_restic_password_primary }}"
+restic_password_secondary: "{{ vault_restic_password_secondary }}"
+restic_primary_ssh_private_key: "{{ vault_restic_primary_ssh_private_key | default('') }}"
+restic_primary_ssh_known_hosts: "{{ vault_restic_primary_ssh_known_hosts | default('') }}"
 restic_primary_sftp_command: ""
-restic_secondary_ssh_private_key: ""
-restic_secondary_ssh_known_hosts: ""
+restic_secondary_ssh_private_key: "{{ vault_restic_secondary_ssh_private_key | default('') }}"
+restic_secondary_ssh_known_hosts: "{{ vault_restic_secondary_ssh_known_hosts | default('') }}"
 restic_secondary_sftp_command: ""
 restic_pre_backup_commands:
   - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
@@ -83,10 +83,19 @@ restic_retention_daily: 14
 restic_retention_weekly: 8
 restic_retention_monthly: 6
 
-tailscale_auth_key: "REPLACE_ME"
+tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
 tailscale_hostname: core-01
 tailscale_tags: []
 
+lockdown_enabled: false
+lockdown_confirmed: false
+lockdown_verify_tailscale: true
+lockdown_mode: tailscale_interface
+lockdown_allowed_cidrs: []
+lockdown_break_glass_file: /etc/crownops/allow_public_ssh
 lockdown_tailscale_interface: tailscale0
 lockdown_ssh_port: 22
 lockdown_disable_public_ssh: true
+lockdown_control_host_probe_enabled: false
+lockdown_control_host_probe_host: ""
+lockdown_control_host_probe_timeout: 8

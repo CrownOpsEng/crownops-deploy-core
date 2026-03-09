@@ -12,6 +12,7 @@ RUN_BOOTSTRAP=1
 RUN_SITE=1
 RUN_BACKUP=1
 RUN_LOCKDOWN=0
+CONFIRM_LOCKDOWN=0
 
 usage() {
   cat <<'USAGE'
@@ -25,7 +26,9 @@ Options:
   --skip-bootstrap         Skip bootstrap
   --skip-site              Skip site deployment
   --skip-backup            Skip backup configuration
-  --lockdown               Run SSH lockdown after deployment phases
+  --enable-lockdown        Run the staged SSH lockdown phase after deployment phases
+  --confirm-lockdown       Confirm restrictive SSH changes during the lockdown phase
+  --lockdown               Deprecated alias for --enable-lockdown
   -h, --help               Show this help
 USAGE
 }
@@ -99,6 +102,14 @@ while [[ $# -gt 0 ]]; do
       RUN_BACKUP=0
       shift
       ;;
+    --enable-lockdown)
+      RUN_LOCKDOWN=1
+      shift
+      ;;
+    --confirm-lockdown)
+      CONFIRM_LOCKDOWN=1
+      shift
+      ;;
     --lockdown)
       RUN_LOCKDOWN=1
       shift
@@ -126,6 +137,15 @@ if [[ "$ASSUME_YES" -eq 0 ]]; then
   prompt_yes_no "Run bootstrap?" y && RUN_BOOTSTRAP=1 || RUN_BOOTSTRAP=0
   prompt_yes_no "Run site deployment?" y && RUN_SITE=1 || RUN_SITE=0
   prompt_yes_no "Run backup setup?" y && RUN_BACKUP=1 || RUN_BACKUP=0
+  prompt_yes_no "Run staged SSH lockdown phase?" n && RUN_LOCKDOWN=1 || RUN_LOCKDOWN=0
+  if [[ "$RUN_LOCKDOWN" -eq 1 ]]; then
+    prompt_yes_no "Confirm restrictive SSH changes if runtime checks pass?" n && CONFIRM_LOCKDOWN=1 || CONFIRM_LOCKDOWN=0
+  fi
+fi
+
+if [[ "$CONFIRM_LOCKDOWN" -eq 1 && "$RUN_LOCKDOWN" -eq 0 ]]; then
+  echo "ERROR: --confirm-lockdown requires --enable-lockdown." >&2
+  exit 2
 fi
 
 ensure_local_config
@@ -139,8 +159,9 @@ fi
 
 run_playbook() {
   local playbook="$1"
+  shift || true
   echo "==> ${playbook}"
-  ansible-playbook -i "$INVENTORY" "${VAULT_ARGS[@]}" "$playbook"
+  ansible-playbook -i "$INVENTORY" "${VAULT_ARGS[@]}" "$playbook" "$@"
 }
 
 ./scripts/install-collections.sh
@@ -149,6 +170,11 @@ run_playbook() {
 [[ "$RUN_BOOTSTRAP" -eq 1 ]] && run_playbook playbooks/bootstrap.yml
 [[ "$RUN_SITE" -eq 1 ]] && run_playbook playbooks/site.yml
 [[ "$RUN_BACKUP" -eq 1 ]] && run_playbook playbooks/backup.yml
-[[ "$RUN_LOCKDOWN" -eq 1 ]] && run_playbook playbooks/lockdown.yml
+if [[ "$RUN_LOCKDOWN" -eq 1 ]]; then
+  if [[ "$CONFIRM_LOCKDOWN" -eq 0 ]]; then
+    echo "==> lockdown phase requested without explicit confirmation; runtime checks will run but public SSH will be preserved."
+  fi
+  run_playbook playbooks/lockdown.yml -e "lockdown_enabled=true" -e "lockdown_confirmed=${CONFIRM_LOCKDOWN}"
+fi
 
 echo "Deploy sequence complete."

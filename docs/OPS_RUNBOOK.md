@@ -18,7 +18,10 @@ Deploy backup jobs:
 `ansible-playbook playbooks/backup.yml`
 
 Lock down public SSH after Tailscale validation:
-`./scripts/lockdown.sh`
+`./scripts/lockdown.sh --confirm`
+
+Validation-only lockdown phase:
+`./scripts/lockdown.sh --phase1-only`
 
 ## Manual checks
 
@@ -33,3 +36,9 @@ CouchDB:
 
 Backup timer state:
 `systemctl list-timers | grep crownops-restic`
+
+UFW posture:
+`sudo ufw status numbered`
+
+Tailscale posture:
+`sudo tailscale status`

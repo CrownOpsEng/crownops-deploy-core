@@ -7,6 +7,7 @@ For this public repo:
 - track only `inventories/prod/group_vars/vault.yml.example`
 - keep the real `inventories/prod/group_vars/vault.yml` ignored
 - encrypt the real `vault.yml` locally before deployment
+- keep `inventories/prod/group_vars/all.yml` for non-secret structure that references vault-backed values
 
 ## Bitwarden role for now
 Use your existing Bitwarden cloud vault as operator reference storage and optional input helper, not as the sole machine secret backend.
@@ -18,7 +19,8 @@ Use your existing Bitwarden cloud vault as operator reference storage and option
 - CouchDB admin password
 - per-vault CouchDB passwords
 - restic passwords
-- backup target SSH access
+- backup target SSH private keys
+- backup target `known_hosts` pins
 
 ### 2. Human vault content keys
 - your LiveSync passphrase
