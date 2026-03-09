@@ -81,7 +81,15 @@
     preflight_errors: "{{ preflight_errors + ['ufw_allowed_tcp_public must include 443 while the Obsidian feature stack is enabled.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - ufw_allowed_tcp_public is not defined or 443 not in (ufw_allowed_tcp_public | list)
+
+- name: Check Obsidian access mode
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['obsidian_access_mode must be public_https or private_mesh while the Obsidian feature stack is enabled.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) not in ['public_https', 'private_mesh']
 
 - name: Check ops user
   ansible.builtin.set_fact:
@@ -93,6 +101,7 @@
     preflight_errors: "{{ preflight_errors + ['traefik_acme_email is unset or placeholder: ' ~ (traefik_acme_email | string) ~ '.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - traefik_acme_email is not defined or '@' not in (traefik_acme_email | string) or 'example.invalid' in (traefik_acme_email | string) or 'change-me@' in (traefik_acme_email | string)
 
 - name: Check ACME DNS provider
@@ -100,6 +109,7 @@
     preflight_errors: "{{ preflight_errors + ['acme_dns_provider is unset.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - acme_dns_provider is not defined or (acme_dns_provider | string | trim) == ''
 
 - name: Check ACME env exists
@@ -107,6 +117,7 @@
     preflight_errors: "{{ preflight_errors + ['acme_env is empty. DNS-01 certificate issuance cannot work without provider credentials.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - acme_env is not defined or (acme_env | length) == 0
 
 - name: Check ACME env placeholder values
@@ -114,8 +125,26 @@
     preflight_errors: "{{ preflight_errors + ['acme_env still contains placeholder values. Replace all REPLACE_ME entries with real DNS provider credentials.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - acme_env is defined
     - (acme_env | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check private mesh base URL
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['obsidian_base_url must be a non-placeholder http or https URL while Obsidian is enabled in private_mesh mode.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - obsidian_base_url is not defined or (obsidian_base_url | string | trim) == '' or 'example.invalid' in (obsidian_base_url | string) or not ((obsidian_base_url | string) is match('^https?://'))
+
+- name: Check private mesh does not expose CouchDB publicly
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['private_mesh mode must not expose CouchDB on the public firewall. Remove 5984 from ufw_allowed_tcp_public or keep CouchDB bound to a non-public interface.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - ufw_allowed_tcp_public is defined
+    - 5984 in (ufw_allowed_tcp_public | list)
 
 - name: Check CouchDB admin credentials
   ansible.builtin.set_fact:

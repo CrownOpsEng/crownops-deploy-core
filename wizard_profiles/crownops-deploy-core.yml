@@ -13,7 +13,10 @@ defaults:
   ops_user: deploy
   ops_group: deploy
   feature_obsidian_enabled: true
+  obsidian_access_mode: public_https
   obsidian_service_subdomain: notes
+  obsidian_base_url: ""
+  obsidian_cors_origins: []
   acme_dns_provider: cloudflare
   couchdb_admin_user: admin
   local_markdown_workspaces:
@@ -34,7 +37,7 @@ defaults:
   traefik_acme_storage: /opt/traefik/acme/acme.json
   couchdb_dir: /opt/couchdb
   couchdb_container_name: couchdb
-  couchdb_bind_host: 127.0.0.1
+  couchdb_bind_host: ""
   couchdb_port: 5984
   vault_root: /srv/crownops/vaults
   exports_root: /srv/crownops/exports
@@ -162,6 +165,13 @@ sections:
         label: Enable Obsidian LiveSync stack
         type: confirm
         default: true
+      - id: obsidian_access_mode
+        label: Obsidian access mode
+        type: select
+        choices: [public_https, private_mesh]
+        help: Public HTTPS uses Traefik and ACME. Private mesh skips public ingress and uses the exact mesh URL you provide.
+        default: public_https
+        when: "feature_obsidian_enabled"
       - id: restic_enabled
         label: Enable host backups
         type: confirm
@@ -173,21 +183,41 @@ sections:
       - id: obsidian_service_subdomain
         label: Obsidian service subdomain
         default: notes
+        when: "obsidian_access_mode == 'public_https'"
+      - id: obsidian_base_url
+        label: Obsidian base URL
+        help: Public HTTPS derives this from the subdomain. Private mesh should use the exact URL clients will open, such as http://100.x.y.z:5984 or https://notes.mesh.example.
+        default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
+        required: true
       - id: traefik_acme_email
         label: ACME email
         help: TLS certificate contact email for Let's Encrypt / ACME account registration
         required: true
+        when: "obsidian_access_mode == 'public_https'"
       - id: acme_dns_provider
         label: ACME DNS provider
         default: cloudflare
+        when: "obsidian_access_mode == 'public_https'"
       - id: acme_env
         label: ACME provider environment values
         type: key_value
         secret: true
         required: true
+        when: "obsidian_access_mode == 'public_https'"
+      - id: obsidian_cors_origins
+        label: Additional browser origins (comma-separated)
+        type: list
+        help: Optional extra browser origins beyond the Obsidian app schemes and the base URL. Usually leave this empty.
       - id: couchdb_admin_user
         label: CouchDB admin user
         default: admin
+      - id: couchdb_bind_host
+        label: CouchDB bind host
+        help: Public HTTPS keeps CouchDB local behind Traefik. Private mesh can bind more broadly for mesh reachability.
+        default_template: "{% if obsidian_access_mode == 'public_https' %}127.0.0.1{% else %}0.0.0.0{% endif %}"
+      - id: couchdb_port
+        label: CouchDB port
+        default: 5984
       - id: vault_root
         label: Vault root path
         default: /srv/crownops/vaults

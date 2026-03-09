@@ -15,6 +15,8 @@ def sanitize_identifier(value: str) -> str:
 def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data = copy.deepcopy(raw)
     host_name = data["host_name"]
+    data["feature_obsidian_enabled"] = bool(data.get("feature_obsidian_enabled", True))
+    data["obsidian_access_mode"] = data.get("obsidian_access_mode") or "public_https"
 
     data["ops_domain"] = data.get("ops_domain") or f"ops.{data['base_domain']}"
     data["tailscale_hostname"] = data.get("tailscale_hostname") or host_name
@@ -43,7 +45,16 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             )
     data["ssh_pubkeys"] = ssh_pubkeys
 
-    if data.get("feature_obsidian_enabled", True):
+    if data.get("feature_obsidian_enabled", False):
+        if data["obsidian_access_mode"] == "public_https":
+            data["obsidian_base_url"] = data.get("obsidian_base_url") or (
+                f"https://{data['obsidian_service_subdomain']}.{data['ops_domain']}"
+            )
+            data["couchdb_bind_host"] = data.get("couchdb_bind_host") or "127.0.0.1"
+        else:
+            data["couchdb_bind_host"] = data.get("couchdb_bind_host") or "0.0.0.0"
+        data["obsidian_cors_origins"] = copy.deepcopy(data.get("obsidian_cors_origins", []) or [])
+
         accounts = []
         account_passwords: dict[str, str] = {}
         for item in data.get("obsidian_vault_accounts", []):
@@ -64,6 +75,8 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
         data["couchdb_vaults"] = []
         data["vault_couchdb_account_passwords"] = {}
         data["vault_couchdb_admin_password"] = ""
+        data["obsidian_base_url"] = ""
+        data["obsidian_cors_origins"] = []
 
     restic_targets = []
     vault_restic_target_secrets: dict[str, dict[str, Any]] = {}
@@ -116,10 +129,14 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
 
     target_names = [item["name"] for item in restic_targets]
     if data.get("restic_enabled", True) and target_names:
+        host_foundation_paths = ["/etc/ssh", "/etc/fail2ban", "/etc/ufw"]
+        if data.get("feature_obsidian_enabled", False) and data.get("obsidian_access_mode") == "public_https":
+            host_foundation_paths.append("/opt/traefik")
+
         data["restic_backup_jobs"] = [
             {
                 "name": "host-foundation",
-                "paths": ["/etc/ssh", "/etc/fail2ban", "/etc/ufw"],
+                "paths": host_foundation_paths,
                 "target_names": target_names,
                 "tags": ["profile:stateful-app", "class:host"],
             },
@@ -137,20 +154,26 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
                 "tags": ["profile:stateful-app", "class:data"],
             },
         ]
-        data["restic_backup_contributions"] = [
-            {
-                "job": "host-foundation",
-                "paths": ["/opt/traefik"],
-                "tags": ["feature:edge-proxy"],
-            },
-            {
-                "job": "application-data",
-                "paths": ["/opt/couchdb", "/srv/crownops"],
-                "pre_commands": ["docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"],
-                "post_commands": ["docker compose -f /opt/couchdb/docker-compose.yml start couchdb"],
-                "tags": ["feature:obsidian-livesync"],
-            },
-        ]
+        restic_backup_contributions = []
+        if data.get("feature_obsidian_enabled", False) and data.get("obsidian_access_mode") == "public_https":
+            restic_backup_contributions.append(
+                {
+                    "job": "host-foundation",
+                    "paths": ["/opt/traefik"],
+                    "tags": ["feature:edge-proxy"],
+                }
+            )
+        if data.get("feature_obsidian_enabled", False):
+            restic_backup_contributions.append(
+                {
+                    "job": "application-data",
+                    "paths": ["/opt/couchdb", "/srv/crownops"],
+                    "pre_commands": ["docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"],
+                    "post_commands": ["docker compose -f /opt/couchdb/docker-compose.yml start couchdb"],
+                    "tags": ["feature:obsidian-livesync"],
+                }
+            )
+        data["restic_backup_contributions"] = restic_backup_contributions
     else:
         data["restic_backup_jobs"] = []
         data["restic_backup_contributions"] = []

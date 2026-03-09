@@ -108,7 +108,10 @@ At minimum set:
 - `ansible_user`
 - `bootstrap_target_ubuntu_release`
 - either `ssh_pubkeys` or let the wizard generate or reuse a managed Ansible SSH key and derive the first authorized key automatically
-- DNS and ACME values if HTTPS-backed features are enabled
+- choose `public_https` or `private_mesh` for Obsidian when that feature is enabled
+- DNS and ACME values only for `public_https`
+- a concrete private mesh base URL only for `private_mesh`
+- keep `5984` off the public firewall in `private_mesh`; that path assumes your VPN or mesh provides reachability
 - synced account structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
 - local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
 - backup targets, backup jobs, and contribution wiring
@@ -155,6 +158,6 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/lockdown.yml -e lockdow
 
 Current feature set:
 
-- Obsidian via Traefik + CouchDB LiveSync
+- Obsidian via CouchDB LiveSync, with either `public_https` (Traefik + ACME) or `private_mesh` access
 
 This keeps application features removable without changing the baseline deployment path.

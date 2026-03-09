@@ -55,6 +55,7 @@ Public repo hygiene:
 - real local inventory and vars stay untracked
 - `scripts/configure.sh` is the preferred local config entrypoint
 - on a first run, `scripts/configure.sh` can generate or reuse a managed Ed25519 Ansible key under `~/.ssh/ansible-config-wizard/`, write `ansible_ssh_private_key_file` into local inventory, and either install that key automatically with a one-shot password prompt or pause with exact commands and resume guidance
+- the Obsidian feature supports two access modes: `public_https` for Traefik + ACME on `443`, and `private_mesh` for VPN or mesh-only reachability without public ingress; preflight rejects a public `5984` firewall rule in `private_mesh`
 - the shared wizard implementation lives outside this repo; this repo only carries the profile, templates, and builder hook
 - `scripts/init-local-config.sh` remains available as a simple scaffold-from-examples fallback
 

@@ -19,6 +19,10 @@ ufw_allowed_udp_public: {{ ufw_allowed_udp_public | yaml_value }}
 
 feature_obsidian_enabled: {{ feature_obsidian_enabled | yaml_value }}
 {% if feature_obsidian_enabled %}
+obsidian_access_mode: {{ obsidian_access_mode | yaml_value }}
+obsidian_base_url: {{ obsidian_base_url | yaml_value }}
+obsidian_cors_origins: {{ obsidian_cors_origins | yaml_value }}
+{% if obsidian_access_mode == 'public_https' %}
 obsidian_service_subdomain: {{ obsidian_service_subdomain | yaml_value }}
 
 traefik_dir: {{ traefik_dir | yaml_value }}
@@ -32,6 +36,7 @@ acme_env:
 {% for key, value in acme_env.items() %}
   {{ key }}: {{ value | yaml_value }}
 {% endfor %}
+{% endif %}
 
 couchdb_dir: {{ couchdb_dir | yaml_value }}
 couchdb_container_name: {{ couchdb_container_name | yaml_value }}

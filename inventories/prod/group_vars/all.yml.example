@@ -16,6 +16,9 @@ ufw_allowed_tcp_public: [22, 443]
 ufw_allowed_udp_public: []
 
 feature_obsidian_enabled: true
+obsidian_access_mode: public_https
+obsidian_base_url: https://notes.ops.example.invalid
+obsidian_cors_origins: []
 obsidian_service_subdomain: notes
 
 traefik_dir: /opt/traefik
