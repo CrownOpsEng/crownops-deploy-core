@@ -11,6 +11,12 @@
 {% if generated_ssh_public_keys %}
 {% for key in generated_ssh_public_keys %}
 - {{ key.label }} fingerprint: `{{ key.fingerprint }}`
+{% if key.public_key_path %}
+  Public key file: `{{ key.public_key_path }}`
+{% endif %}
+{% if key.private_key_path %}
+  Private key file: `{{ key.private_key_path }}`
+{% endif %}
 ```text
 {{ key.public_key }}
 ```

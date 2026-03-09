@@ -23,6 +23,24 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data["couchdb_admin_password_ref"] = "{{ vault_couchdb_admin_password }}"
     data["tailscale_auth_key_ref"] = "{{ vault_tailscale_auth_key | default('') }}"
 
+    generated_ssh_public_keys: list[dict[str, str]] = []
+    ssh_pubkeys = copy.deepcopy(data.get("ssh_pubkeys", []) or [])
+    if data.get("ssh_setup_mode") == "generate_bootstrap_key":
+        bootstrap_keypair = data.get("bootstrap_ssh_keypair") or {}
+        bootstrap_public_key = bootstrap_keypair.get("public_key", "").strip()
+        if bootstrap_public_key:
+            ssh_pubkeys = [bootstrap_public_key, *copy.deepcopy(data.get("additional_ssh_pubkeys", []) or [])]
+            generated_ssh_public_keys.append(
+                {
+                    "label": f"bootstrap access for {host_name}",
+                    "public_key": bootstrap_public_key,
+                    "fingerprint": bootstrap_keypair.get("fingerprint", ""),
+                    "private_key_path": bootstrap_keypair.get("private_key_path", ""),
+                    "public_key_path": bootstrap_keypair.get("public_key_path", ""),
+                }
+            )
+    data["ssh_pubkeys"] = ssh_pubkeys
+
     if data.get("feature_obsidian_enabled", True):
         accounts = []
         account_passwords: dict[str, str] = {}
@@ -47,7 +65,6 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
 
     restic_targets = []
     vault_restic_target_secrets: dict[str, dict[str, Any]] = {}
-    generated_ssh_public_keys: list[dict[str, str]] = []
     for item in data.get("restic_targets_input", []):
         key = sanitize_identifier(item["name"])
         if item.get("generate_ssh_key", False):

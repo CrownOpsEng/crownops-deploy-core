@@ -6,11 +6,12 @@ defaults:
   host_name: core-01
   bootstrap_ansible_user: root
   ansible_user: deploy
+  ssh_setup_mode: generate_bootstrap_key
+  additional_ssh_pubkeys: []
   timezone: America/Denver
   bootstrap_target_ubuntu_release: jammy
   ops_user: deploy
   ops_group: deploy
-  ssh_pubkeys: []
   feature_obsidian_enabled: true
   obsidian_service_subdomain: notes
   acme_dns_provider: cloudflare
@@ -61,7 +62,7 @@ sections:
         default: quick
   - id: host
     title: Host Basics
-    description: Minimum host and SSH details.
+    description: Minimum host details plus first-run SSH bootstrap.
     fields:
       - id: host_name
         label: Inventory host name
@@ -77,10 +78,51 @@ sections:
         label: Steady-state Ansible SSH user
         default: deploy
         required: true
+      - id: ssh_setup_mode
+        label: SSH setup path
+        type: select
+        choices: [generate_bootstrap_key, use_existing_public_keys]
+        default: generate_bootstrap_key
+      - id: bootstrap_ssh_keypair
+        label: Bootstrap SSH key pair
+        type: ssh_keypair
+        when: "ssh_setup_mode == 'generate_bootstrap_key'"
+        source:
+          kind: generate
+          generator: ed25519_keypair
+          params:
+            path_template: reports/bootstrap-ssh/{{ host_name }}-{{ bootstrap_ansible_user }}-bootstrap
+            comment_template: "{{ ansible_user }}@{{ host_name }}"
+      - id: additional_ssh_pubkeys
+        label: Additional authorized SSH public keys (comma-separated)
+        type: list
+        when: "ssh_setup_mode == 'generate_bootstrap_key'"
       - id: ssh_pubkeys
         label: Authorized SSH public keys (comma-separated)
         type: list
+        when: "ssh_setup_mode == 'use_existing_public_keys'"
         required: true
+    actions:
+      - kind: pause
+        when: "ssh_setup_mode == 'generate_bootstrap_key'"
+        save_state: true
+        message_template: |
+          A bootstrap SSH key pair was generated for {{ host_name }}.
+
+          Private key:
+            {{ bootstrap_ssh_keypair.private_key_path }}
+          Public key:
+            {{ bootstrap_ssh_keypair.public_key_path }}
+          Fingerprint:
+            {{ bootstrap_ssh_keypair.fingerprint }}
+
+          Next steps on your control machine:
+            ssh-copy-id -i {{ bootstrap_ssh_keypair.public_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
+            ssh -i {{ bootstrap_ssh_keypair.private_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
+
+          After you confirm access works, resume the wizard:
+            ./scripts/configure.sh --answers-file {{ resume_state_path }}
+        prompt: Pause after installing and testing bootstrap SSH access?
   - id: general
     title: General Deployment Settings
     fields:

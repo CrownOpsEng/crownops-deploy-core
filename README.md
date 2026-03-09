@@ -54,6 +54,7 @@ Public repo hygiene:
 - tracked files end in `.example`
 - real local inventory and vars stay untracked
 - `scripts/configure.sh` is the preferred local config entrypoint
+- on a first run, `scripts/configure.sh` can generate a bootstrap Ed25519 SSH key, pause, show the exact `ssh-copy-id` and test commands to run, and then resume from a saved answers file
 - the shared wizard implementation lives outside this repo; this repo only carries the profile, templates, and builder hook
 - `scripts/init-local-config.sh` remains available as a simple scaffold-from-examples fallback
 

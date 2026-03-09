@@ -41,6 +41,9 @@ VPS/
 It will:
 
 - collect or generate configuration interactively
+- generate a bootstrap Ed25519 SSH key on first run when you do not already have authorized keys ready
+- pause with exact `ssh-copy-id` and `ssh -i` guidance so you can install and test access before continuing
+- write a 0600 resume-state file so the wizard can continue from the same point later
 - write inventory, non-secret settings, and local secret material
 - optionally write a sensitive details file
 - optionally write a sanitized audit log
@@ -102,7 +105,7 @@ At minimum set:
 - `bootstrap_ansible_user`
 - `ansible_user`
 - `bootstrap_target_ubuntu_release`
-- `ssh_pubkeys`
+- either `ssh_pubkeys` or let the wizard generate a bootstrap SSH key and derive the first authorized key automatically
 - DNS and ACME values if HTTPS-backed features are enabled
 - synced account structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
 - local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
@@ -111,6 +114,8 @@ At minimum set:
 
 Notes:
 
+- when the wizard generates a bootstrap SSH key, it writes the key pair under `reports/bootstrap-ssh/` and pauses before the rest of the questions so you can install the public key on the host and verify access
+- resume a paused run with `./scripts/configure.sh --answers-file <saved-state.yml>`
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
 - if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works
 - SFTP backup transport supports SSH keys on a per-target basis by setting `ssh_private_key` and `ssh_known_hosts` under each `restic_targets` entry
