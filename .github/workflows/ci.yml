@@ -12,17 +12,18 @@ jobs:
     env:
       ANSIBLE_CONFIG: ${{ github.workspace }}/ansible.cfg
       ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}/.ansible/collections:/home/runner/.ansible/collections:/usr/share/ansible/collections
+      CROWNOPS_ACTIONS_REPO_READ_TOKEN: ${{ secrets.CROWNOPS_ACTIONS_REPO_READ_TOKEN }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Check out private base collection
-        if: ${{ secrets.CROWNOPS_ACTIONS_REPO_READ_TOKEN != '' }}
+        if: ${{ env.CROWNOPS_ACTIONS_REPO_READ_TOKEN != '' }}
         uses: actions/checkout@v4
         with:
           repository: CrownOpsEng/crownops-deploy-base
           path: .ci-deps/crownops-deploy-base
-          token: ${{ secrets.CROWNOPS_ACTIONS_REPO_READ_TOKEN }}
+          token: ${{ env.CROWNOPS_ACTIONS_REPO_READ_TOKEN }}
 
       - name: Resolve collection sources
         run: |
