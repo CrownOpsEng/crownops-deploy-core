@@ -46,6 +46,19 @@ By default it prompts before each phase. Use `--yes` for unattended execution.
 
 ## Minimum repo setup
 
+Primary configuration surface:
+- `inventories/prod/group_vars/all.yml`
+
+That file should remain the main place where you enable features and define non-secret behavior:
+- domains and ingress settings
+- host bootstrap settings
+- synced Obsidian account definitions
+- local markdown workspace names
+- backup retention, backup paths, and lockdown behavior
+
+Secrets belong in:
+- `inventories/prod/group_vars/vault.yml`
+
 Tracked templates:
 - `inventories/prod/hosts.yml.example`
 - `inventories/prod/group_vars/all.yml.example`
@@ -65,7 +78,8 @@ At minimum set:
 - `bootstrap_target_ubuntu_release`
 - `ssh_pubkeys`
 - DNS and ACME values if HTTPS-backed features are enabled
-- CouchDB structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
+- synced account structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
+- local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
 - backup target credentials
 - Tailscale hostname/tags in `all.yml` and optional auth key in `vault.yml`
 

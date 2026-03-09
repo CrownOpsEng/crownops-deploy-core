@@ -36,26 +36,25 @@ couchdb_admin_password: "{{ vault_couchdb_admin_password }}"
 couchdb_bind_host: 127.0.0.1
 couchdb_port: 5984
 couchdb_vaults:
-  - name: you
-    db_name: vault_you
-    user: vault_you_user
-    password: "{{ vault_couchdb_vault_passwords.you }}"
-  - name: kid1
-    db_name: vault_kid1
-    user: vault_kid1_user
-    password: "{{ vault_couchdb_vault_passwords.kid1 }}"
-  - name: kid2
-    db_name: vault_kid2
-    user: vault_kid2_user
-    password: "{{ vault_couchdb_vault_passwords.kid2 }}"
+  - name: user_a
+    db_name: vault_user_a
+    user: vault_user_a_user
+    password: "{{ vault_couchdb_account_passwords.user_a }}"
+  - name: user_b
+    db_name: vault_user_b
+    user: vault_user_b_user
+    password: "{{ vault_couchdb_account_passwords.user_b }}"
+  - name: user_c
+    db_name: vault_user_c
+    user: vault_user_c_user
+    password: "{{ vault_couchdb_account_passwords.user_c }}"
 
 vault_root: /srv/crownops/vaults
 exports_root: /srv/crownops/exports
-agent_vaults:
-  - aegis
-  - helios
-  - relay
-  - quartermaster
+local_markdown_workspaces:
+  - shared-docs
+  - operations
+  - scratch
 
 restic_repo_primary: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
 restic_repo_secondary: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core

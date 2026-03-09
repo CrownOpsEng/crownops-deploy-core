@@ -8,30 +8,30 @@
     mode: '0750'
   loop:
     - "{{ vault_root }}"
-    - "{{ vault_root }}/humans"
-    - "{{ vault_root }}/agents"
+    - "{{ vault_root }}/synced"
+    - "{{ vault_root }}/workspaces"
     - "{{ exports_root }}"
     - "{{ exports_root }}/shared"
 
-- name: Create agent vault directories
+- name: Create local markdown workspace directories
   ansible.builtin.file:
-    path: "{{ vault_root }}/agents/{{ item }}"
+    path: "{{ vault_root }}/workspaces/{{ item }}"
     state: directory
     owner: "{{ ops_user }}"
     group: "{{ ops_group }}"
     mode: '0750'
-  loop: "{{ agent_vaults }}"
+  loop: "{{ local_markdown_workspaces }}"
 
-- name: Seed agent vault README files
+- name: Seed local markdown workspace README files
   ansible.builtin.copy:
-    dest: "{{ vault_root }}/agents/{{ item }}/README.md"
+    dest: "{{ vault_root }}/workspaces/{{ item }}/README.md"
     owner: "{{ ops_user }}"
     group: "{{ ops_group }}"
     mode: '0640'
     content: |
-      # {{ item | title }} Vault
+      # {{ item | title }} Workspace
 
-      Purpose: agent working vault.
+      Purpose: local markdown workspace.
       Type: plain markdown on disk.
-      Notes: not part of the human LiveSync backend.
-  loop: "{{ agent_vaults }}"
+      Notes: not part of the Obsidian LiveSync backend.
+  loop: "{{ local_markdown_workspaces }}"

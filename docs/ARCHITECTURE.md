@@ -30,22 +30,21 @@ Current feature set:
 
 This keeps the site repo thin while still allowing features to evolve independently.
 
-## Human vaults
+## Synced user vaults
 
-- your vault
-- kid1 vault
-- kid2 vault
+- user_a vault
+- user_b vault
+- user_c vault
 
 Each gets its own:
 - CouchDB database
 - CouchDB user
 - LiveSync encryption passphrase
 
-## Agent vaults
+## Local markdown workspaces
 
-- Aegis
-- Helios
-- Relay
-- Quartermaster
+- shared-docs
+- operations
+- scratch
 
-Each is a plain markdown directory on disk under `/srv/crownops/vaults/agents`.
+Each is a plain markdown directory on disk under `/srv/crownops/vaults/workspaces`.

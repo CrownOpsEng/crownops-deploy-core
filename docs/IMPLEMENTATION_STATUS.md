@@ -29,7 +29,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - No live host deployment has been validated end-to-end
 - No certificate issuance has been validated
 - No Android Obsidian LiveSync validation has been run
-- No kid vault handoff process has been validated in practice
+- No end-user vault handoff process has been validated in practice
 - No Tailscale ACL or tag policy is implemented beyond variable placeholders
 - No backup repo init validation has been run
 - No restore test has been executed
@@ -47,7 +47,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 5. Verify whether port 443 should be publicly reachable or source-restricted in your exact model.
 6. Join the host to Tailscale with the real auth approach you want.
 7. Prepare the primary and secondary backup targets.
-8. Decide how you will store LiveSync passphrases.
+8. Decide how you will handle LiveSync passphrase ownership and recovery expectations.
 9. Run and validate the package in a controlled sequence, including the staged SSH lockdown.
 
 ## Resume point without analysis

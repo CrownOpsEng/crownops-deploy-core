@@ -66,6 +66,6 @@ This phase:
 - verifies `tailscale0`, `tailscale status --json`, and a Tailscale IPv4 address before broad SSH removal
 - allows SSH on `tailscale0` or configured CIDRs first, then removes public SSH when `lockdown_disable_public_ssh` is enabled
 
-## 9. Handoff kid vaults
+## 9. Handoff synced vaults
 
-Each kid should complete or rotate their final LiveSync encryption passphrase.
+Each user should complete or rotate their final LiveSync encryption passphrase.

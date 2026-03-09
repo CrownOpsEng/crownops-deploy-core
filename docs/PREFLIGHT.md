@@ -25,9 +25,9 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 - Traefik ACME email and DNS provider configuration
 - ACME provider env placeholders
 - CouchDB admin credentials when Obsidian is enabled
-- human vault definitions for `you`, `kid1`, `kid2`
+- synced Obsidian account definitions
 - duplicate vault names, database names, or users
-- placeholder human vault passwords
+- placeholder synced account passwords
 - path collisions between `vault_root` and `exports_root`
 - restic repository and password placeholders
 - Tailscale auth and bootstrap placeholders

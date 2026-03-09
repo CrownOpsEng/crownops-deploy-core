@@ -124,22 +124,22 @@
     - feature_obsidian_enabled | default(true) | bool
     - couchdb_admin_user is not defined or couchdb_admin_password is not defined or (couchdb_admin_user | string | trim) == '' or (couchdb_admin_password | string | trim) == '' or 'REPLACE_ME' in (couchdb_admin_password | string)
 
-- name: Check human vault definitions exist
+- name: Check synced vault definitions exist
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain at least one human vault definition while the Obsidian feature stack is enabled.'] }}"
+    preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain at least one sync account definition while the Obsidian feature stack is enabled.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
     - couchdb_vaults is not defined or (couchdb_vaults | length) == 0
 
-- name: Check duplicate human vault names
+- name: Check duplicate synced vault names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Duplicate human vault names found in couchdb_vaults. Names must be unique.'] }}"
+    preflight_errors: "{{ preflight_errors + ['Duplicate sync account names found in couchdb_vaults. Names must be unique.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
     - couchdb_vaults is defined
     - ((couchdb_vaults | map(attribute='name') | list | unique | length) != (couchdb_vaults | map(attribute='name') | list | length))
 
-- name: Check duplicate human vault db names
+- name: Check duplicate synced vault db names
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB db_name values found in couchdb_vaults.'] }}"
   when:
@@ -147,7 +147,7 @@
     - couchdb_vaults is defined
     - ((couchdb_vaults | map(attribute='db_name') | list | unique | length) != (couchdb_vaults | map(attribute='db_name') | list | length))
 
-- name: Check duplicate human vault users
+- name: Check duplicate synced vault users
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB user values found in couchdb_vaults.'] }}"
   when:
@@ -155,7 +155,7 @@
     - couchdb_vaults is defined
     - ((couchdb_vaults | map(attribute='user') | list | unique | length) != (couchdb_vaults | map(attribute='user') | list | length))
 
-- name: Check human vault placeholders
+- name: Check synced vault placeholders
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['One or more couchdb_vaults entries still contains placeholder password values.'] }}"
   when:
@@ -163,12 +163,12 @@
     - couchdb_vaults is defined
     - (couchdb_vaults | to_nice_yaml) is search('REPLACE_ME')
 
-- name: Check duplicate agent vault names
+- name: Check duplicate local workspace names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['agent_vaults contains duplicate values.'] }}"
+    preflight_errors: "{{ preflight_errors + ['local_markdown_workspaces contains duplicate values.'] }}"
   when:
-    - agent_vaults is defined
-    - ((agent_vaults | unique | length) != (agent_vaults | length))
+    - local_markdown_workspaces is defined
+    - ((local_markdown_workspaces | unique | length) != (local_markdown_workspaces | length))
 
 - name: Check path collisions between vault_root and exports_root
   ansible.builtin.set_fact:

@@ -14,10 +14,10 @@
 
 # Secret overrides:
 vault_couchdb_admin_password: "REPLACE_ME"
-vault_couchdb_vault_passwords:
-  you: "REPLACE_ME"
-  kid1: "REPLACE_ME"
-  kid2: "REPLACE_ME"
+vault_couchdb_account_passwords:
+  user_a: "REPLACE_ME"
+  user_b: "REPLACE_ME"
+  user_c: "REPLACE_ME"
 vault_restic_password_primary: "REPLACE_ME"
 vault_restic_password_secondary: "REPLACE_ME"
 vault_restic_primary_ssh_private_key: |

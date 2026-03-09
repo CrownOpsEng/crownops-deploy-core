@@ -22,12 +22,10 @@ Use your existing Bitwarden cloud vault as operator reference storage and option
 - backup target SSH private keys
 - backup target `known_hosts` pins
 
-### 2. Human vault content keys
-- your LiveSync passphrase
-- kid1 final LiveSync passphrase
-- kid2 final LiveSync passphrase
+### 2. User vault content keys
+- final LiveSync passphrase for each synced user vault
 
-Do not casually retain the kids' final passphrases if privacy is the goal.
+Do not casually retain user-managed final passphrases if privacy is the goal.
 
 ### 3. Operator reference secrets
 Can live in Bitwarden:

@@ -15,6 +15,10 @@ This repo should stay thin:
 - site playbooks
 - only truly site-local roles such as layout and preflight
 
+Configuration model:
+- `inventories/prod/group_vars/all.yml` is the primary non-secret configuration surface
+- `inventories/prod/group_vars/vault.yml` holds secret values only
+
 Read first:
 - `docs/QUICKSTART.md`
 - `docs/IMPLEMENTATION_STATUS.md`

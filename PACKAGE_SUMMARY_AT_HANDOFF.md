@@ -12,16 +12,16 @@ A structured Ansible deployment scaffold for a CrownOps remote environment that 
 - HTTPS required for Obsidian LiveSync mobile compatibility
 - Tailscale install/join during bootstrap with optional manual-join path
 - staged post-join SSH lockdown with explicit enable and confirm gates
-- CouchDB backend for human Obsidian vaults
-- separate CouchDB database and user per human vault
-- plain markdown vault directories for agents
+- CouchDB backend for synced Obsidian user vaults
+- separate CouchDB database and user per synced vault
+- plain markdown workspace directories for local-only content
 - encrypted restic backups to primary and secondary targets
 
-## Human vault plan
+## Example synced vault plan
 
-- you
-- kid1
-- kid2
+- user_a
+- user_b
+- user_c
 
 Each vault gets:
 - dedicated CouchDB database
@@ -29,13 +29,12 @@ Each vault gets:
 - dedicated LiveSync encryption passphrase
 - dedicated backup coverage
 
-## Agent vault plan
+## Example local workspace plan
 
-One vault per agent:
-- Aegis
-- Helios
-- Relay
-- Quartermaster
+One workspace per local content area:
+- shared-docs
+- operations
+- scratch
 
 ## What remains before production use
 
@@ -47,4 +46,4 @@ One vault per agent:
 - validate Android Obsidian LiveSync end-to-end
 - validate backups and restore
 - run staged lockdown after confirming SSH via Tailscale or another restrictive path
-- hand off kid vault setup with user-owned final encryption passphrases
+- hand off synced vault setup with user-owned final encryption passphrases
