@@ -35,7 +35,7 @@ CouchDB:
 `docker logs couchdb --tail 200`
 
 Backup timer state:
-`systemctl list-timers | grep crownops-restic`
+`systemctl list-timers 'crownops-restic*'`
 
 UFW posture:
 `sudo ufw status numbered`

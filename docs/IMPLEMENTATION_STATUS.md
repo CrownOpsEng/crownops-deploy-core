@@ -46,7 +46,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 4. Ensure firewall and DNS align with HTTPS issuance path.
 5. Verify whether port 443 should be publicly reachable or source-restricted in your exact model.
 6. Join the host to Tailscale with the real auth approach you want.
-7. Prepare the primary and secondary backup targets.
+7. Prepare the backup targets and confirm the job/contribution model matches the host role.
 8. Decide how you will handle LiveSync passphrase ownership and recovery expectations.
 9. Run and validate the package in a controlled sequence, including the staged SSH lockdown.
 
@@ -62,4 +62,4 @@ If you come back cold, do this in order:
 6. Run `playbooks/site.yml`.
 7. Run `playbooks/backup.yml`.
 8. Validate Tailscale access and then run `./scripts/lockdown.sh --confirm`.
-9. Manually validate HTTPS, CouchDB, LiveSync, and backups.
+9. Manually validate HTTPS, CouchDB, LiveSync, and at least one real restore path.

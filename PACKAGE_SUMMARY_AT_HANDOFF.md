@@ -15,7 +15,7 @@ A structured Ansible deployment scaffold for a CrownOps remote environment that 
 - CouchDB backend for synced Obsidian user vaults
 - separate CouchDB database and user per synced vault
 - plain markdown workspace directories for local-only content
-- encrypted restic backups to primary and secondary targets
+- encrypted restic backups composed from targets, logical jobs, and feature contributions
 
 ## Example synced vault plan
 
