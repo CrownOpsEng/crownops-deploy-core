@@ -1,10 +1,27 @@
-reports/
+# Standard Ansible/operator-local ignores.
+
+# Ansible runtime artifacts
 .ansible/
-dist/
 *.retry
+
+# Python cache from helper scripts or wizard support modules
+__pycache__/
+*.py[cod]
+
+# Local packaging output
+build/
+dist/
+
+# Operator-local vault password helpers
+.vault_pass
 .vault_pass*
 vault-pass*
 *.vault-password*
+
+# Generated reports
+reports/
+
+# Real inventory values stay local; example files are versioned.
 inventories/prod/hosts.yml
 inventories/prod/group_vars/all.yml
 inventories/prod/group_vars/core_hosts.yml
