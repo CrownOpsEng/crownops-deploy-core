@@ -137,6 +137,15 @@
     - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
     - obsidian_base_url is not defined or (obsidian_base_url | string | trim) == '' or 'example.invalid' in (obsidian_base_url | string) or not ((obsidian_base_url | string) is match('^https?://'))
 
+- name: Check Tailscale MagicDNS planning inputs
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_tailnet_name must be set when private_mesh uses the tailscale_magicdns URL strategy.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
+    - tailscale_tailnet_name is not defined or (tailscale_tailnet_name | string | trim) == ''
+
 - name: Check private mesh does not expose CouchDB publicly
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['private_mesh mode must not expose CouchDB on the public firewall. Remove 5984 from ufw_allowed_tcp_public or keep CouchDB bound to a non-public interface.'] }}"

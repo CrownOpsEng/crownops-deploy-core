@@ -14,6 +14,7 @@ defaults:
   ops_group: deploy
   feature_obsidian_enabled: true
   obsidian_access_mode: public_https
+  private_mesh_url_strategy: tailscale_magicdns
   obsidian_service_subdomain: notes
   obsidian_base_url: ""
   obsidian_cors_origins: []
@@ -176,6 +177,23 @@ sections:
         label: Enable host backups
         type: confirm
         default: true
+  - id: tailscale
+    title: Tailscale Settings
+    fields:
+      - id: tailscale_hostname
+        label: Tailscale hostname
+        help: Planned node name for mesh access. This can be set before the host joins the tailnet.
+        default_template: "{{ host_name }}"
+      - id: tailscale_auth_key
+        label: Tailscale auth key (blank for manual join)
+        type: password
+        secret: true
+        source:
+          kind: optional_prompt
+      - id: tailscale_tags
+        label: Tailscale tags (comma-separated)
+        type: list
+        default: []
   - id: obsidian
     title: Obsidian Feature Settings
     when: "feature_obsidian_enabled"
@@ -184,11 +202,6 @@ sections:
         label: Obsidian service subdomain
         default: notes
         when: "obsidian_access_mode == 'public_https'"
-      - id: obsidian_base_url
-        label: Obsidian base URL
-        help: Public HTTPS derives this from the subdomain. Private mesh should use the exact URL clients will open, such as http://100.x.y.z:5984 or https://notes.mesh.example.
-        default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
-        required: true
       - id: traefik_acme_email
         label: ACME email
         help: TLS certificate contact email for Let's Encrypt / ACME account registration
@@ -204,6 +217,24 @@ sections:
         secret: true
         required: true
         when: "obsidian_access_mode == 'public_https'"
+      - id: private_mesh_url_strategy
+        label: Private mesh URL strategy
+        type: select
+        choices: [tailscale_magicdns, explicit_url]
+        help: Tailscale MagicDNS lets you plan the private URL before the host joins. Explicit URL is for another mesh endpoint or a known private address.
+        default: tailscale_magicdns
+        when: "obsidian_access_mode == 'private_mesh'"
+      - id: tailscale_tailnet_name
+        label: Tailscale tailnet name
+        help: Used to derive a planned MagicDNS hostname like core-01.<tailnet>.ts.net before the machine joins.
+        required: true
+        when: "obsidian_access_mode == 'private_mesh' and private_mesh_url_strategy == 'tailscale_magicdns'"
+      - id: obsidian_base_url
+        label: Obsidian base URL
+        help: Public HTTPS derives this from the subdomain. Explicit private mesh should use the exact URL clients will open, such as http://100.x.y.z:5984 or https://notes.mesh.example.
+        default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% elif private_mesh_url_strategy == 'tailscale_magicdns' and tailscale_tailnet_name %}http://{{ tailscale_hostname }}.{{ tailscale_tailnet_name }}.ts.net:{{ couchdb_port }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
+        required: true
+        when: "obsidian_access_mode == 'public_https' or private_mesh_url_strategy == 'explicit_url'"
       - id: obsidian_cors_origins
         label: Additional browser origins (comma-separated)
         type: list
@@ -303,22 +334,6 @@ sections:
       - id: environment
         label: Extra environment variables for this target
         type: key_value
-  - id: tailscale
-    title: Tailscale Settings
-    fields:
-      - id: tailscale_hostname
-        label: Tailscale hostname
-        default_template: "{{ host_name }}"
-      - id: tailscale_auth_key
-        label: Tailscale auth key (blank for manual join)
-        type: password
-        secret: true
-        source:
-          kind: optional_prompt
-      - id: tailscale_tags
-        label: Tailscale tags (comma-separated)
-        type: list
-        default: []
   - id: advanced
     title: Advanced Settings
     when: "wizard_mode == 'customize'"

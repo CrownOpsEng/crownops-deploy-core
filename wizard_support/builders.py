@@ -17,6 +17,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     host_name = data["host_name"]
     data["feature_obsidian_enabled"] = bool(data.get("feature_obsidian_enabled", True))
     data["obsidian_access_mode"] = data.get("obsidian_access_mode") or "public_https"
+    data["private_mesh_url_strategy"] = data.get("private_mesh_url_strategy") or "tailscale_magicdns"
 
     data["ops_domain"] = data.get("ops_domain") or f"ops.{data['base_domain']}"
     data["tailscale_hostname"] = data.get("tailscale_hostname") or host_name
@@ -52,6 +53,10 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             )
             data["couchdb_bind_host"] = data.get("couchdb_bind_host") or "127.0.0.1"
         else:
+            if data["private_mesh_url_strategy"] == "tailscale_magicdns" and data.get("tailscale_tailnet_name"):
+                data["obsidian_base_url"] = data.get("obsidian_base_url") or (
+                    f"http://{data['tailscale_hostname']}.{data['tailscale_tailnet_name']}.ts.net:{data['couchdb_port']}"
+                )
             data["couchdb_bind_host"] = data.get("couchdb_bind_host") or "0.0.0.0"
         data["obsidian_cors_origins"] = copy.deepcopy(data.get("obsidian_cors_origins", []) or [])
 
