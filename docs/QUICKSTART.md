@@ -114,7 +114,7 @@ At minimum set:
 
 Notes:
 
-- when the wizard generates a bootstrap SSH key, it writes the key pair under `reports/bootstrap-ssh/` and pauses before the rest of the questions so you can install the public key on the host and verify access
+- when the wizard generates a bootstrap SSH key, it writes the key pair under the local wizard state directory, by default `~/.local/state/ansible-config-wizard/<profile>/<repo>/bootstrap-ssh/`, and pauses before the rest of the questions so you can install the public key on the host and verify access
 - resume a paused run with `./scripts/configure.sh --answers-file <saved-state.yml>`
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
 - if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works

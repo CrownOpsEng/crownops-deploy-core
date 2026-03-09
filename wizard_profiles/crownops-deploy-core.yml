@@ -91,7 +91,7 @@ sections:
           kind: generate
           generator: ed25519_keypair
           params:
-            path_template: reports/bootstrap-ssh/{{ host_name }}-{{ bootstrap_ansible_user }}-bootstrap
+            path_template: "{{ wizard_state_dir }}/bootstrap-ssh/{{ host_name }}-{{ bootstrap_ansible_user }}-bootstrap"
             comment_template: "{{ ansible_user }}@{{ host_name }}"
       - id: additional_ssh_pubkeys
         label: Additional authorized SSH public keys (comma-separated)
@@ -325,7 +325,7 @@ outputs:
     template: wizard_templates/crownops-deploy-core/vault.yml.j2
     mode: "0600"
   - id: details
-    path: reports/config-details-{{ timestamp }}.md
+    path: "{{ wizard_run_dir }}/config-details.md"
     template: wizard_templates/crownops-deploy-core/details.md.j2
     mode: "0600"
     when: "write_details"
