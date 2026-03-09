@@ -13,19 +13,19 @@
     group: root
     mode: '0700'
 
-- name: Render H4F restic env
+- name: Render primary restic env
   ansible.builtin.template:
-    src: restic-h4f.env.j2
-    dest: /opt/crownops-backup/restic-h4f.env
+    src: restic-primary.env.j2
+    dest: /opt/crownops-backup/restic-primary.env
     owner: root
     group: root
     mode: '0600'
   no_log: true
 
-- name: Render laptop restic env
+- name: Render secondary restic env
   ansible.builtin.template:
-    src: restic-laptop.env.j2
-    dest: /opt/crownops-backup/restic-laptop.env
+    src: restic-secondary.env.j2
+    dest: /opt/crownops-backup/restic-secondary.env
     owner: root
     group: root
     mode: '0600'

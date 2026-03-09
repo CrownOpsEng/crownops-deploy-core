@@ -1,6 +1,6 @@
 ---
 - name: Configure backup jobs
-  hosts: ovh_core
+  hosts: core_hosts
   become: true
   roles:
     - role: restic_client

@@ -1,0 +1,14 @@
+---
+- name: Deploy Obsidian LiveSync feature stack
+  hosts: core_hosts
+  become: true
+  roles:
+    - role: traefik_core
+      when: feature_obsidian_enabled | bool
+      tags: [feature, obsidian, traefik, proxy]
+    - role: couchdb_livesync
+      when: feature_obsidian_enabled | bool
+      tags: [feature, obsidian, couchdb, livesync]
+    - role: bootstrap_outputs
+      when: feature_obsidian_enabled | bool
+      tags: [feature, obsidian, outputs, handoff]

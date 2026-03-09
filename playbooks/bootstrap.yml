@@ -1,12 +1,12 @@
 ---
-- name: Bootstrap OVH core host
-  hosts: ovh_core
+- name: Bootstrap deployment core hosts
+  hosts: core_hosts
   remote_user: "{{ bootstrap_ansible_user | default(ansible_user) }}"
   become: true
   roles:
-    - role: crownops.vps_base.bootstrap_host
+    - role: crownops.deploy_base.bootstrap_host
       vars:
-        bootstrap_target_ubuntu_release: "{{ ovh_bootstrap_ubuntu_release }}"
+        bootstrap_target_ubuntu_release: "{{ bootstrap_target_ubuntu_release }}"
         bootstrap_hostname: "{{ tailscale_hostname | default(inventory_hostname) }}"
         bootstrap_timezone: "{{ timezone }}"
         bootstrap_base_packages: "{{ base_packages }}"

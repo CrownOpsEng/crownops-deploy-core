@@ -8,7 +8,7 @@ require_valid_user = true
 
 [cors]
 credentials = true
-origins = app://obsidian.md,capacitor://localhost,https://notes.{{ ops_domain }}
+origins = app://obsidian.md,capacitor://localhost,https://{{ obsidian_service_subdomain }}.{{ ops_domain }}
 enable_cors = true
 
 [admins]

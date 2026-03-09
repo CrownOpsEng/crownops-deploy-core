@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-BASE_URL="https://notes.{{ ops_domain }}"
+BASE_URL="https://{{ obsidian_service_subdomain }}.{{ ops_domain }}"
 ADMIN_USER="{{ couchdb_admin_user }}"
 ADMIN_PASS="{{ couchdb_admin_password }}"
 

@@ -1,5 +1,5 @@
 ---
-- name: Preflight validation for OVH core deployment
+- name: Preflight validation for deployment core
   hosts: localhost
   connection: local
   become: false

@@ -77,26 +77,26 @@
   ansible.builtin.systemd:
     daemon_reload: true
 
-- name: Enable H4F backup timer
+- name: Enable primary backup timer
   ansible.builtin.systemd:
-    name: crownops-restic-backup@h4f.timer
+    name: crownops-restic-backup@primary.timer
     enabled: true
     state: started
 
-- name: Enable laptop backup timer
+- name: Enable secondary backup timer
   ansible.builtin.systemd:
-    name: crownops-restic-backup@laptop.timer
+    name: crownops-restic-backup@secondary.timer
     enabled: true
     state: started
 
-- name: Enable H4F maintenance timer
+- name: Enable primary maintenance timer
   ansible.builtin.systemd:
-    name: crownops-restic-maintain@h4f.timer
+    name: crownops-restic-maintain@primary.timer
     enabled: true
     state: started
 
-- name: Enable laptop maintenance timer
+- name: Enable secondary maintenance timer
   ansible.builtin.systemd:
-    name: crownops-restic-maintain@laptop.timer
+    name: crownops-restic-maintain@secondary.timer
     enabled: true
     state: started

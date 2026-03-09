@@ -11,7 +11,7 @@
 
 - name: Check target group population
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Inventory group ' ~ preflight_target_group ~ ' is empty. Define at least one OVH core host in inventories/prod/hosts.yml.'] }}"
+    preflight_errors: "{{ preflight_errors + ['Inventory group ' ~ preflight_target_group ~ ' is empty. Define at least one deployment target host in inventories/prod/hosts.yml.'] }}"
   when: (preflight_group_hosts | length) == 0
 
 - name: Check ansible_host exists for each target host
@@ -42,7 +42,7 @@
 
 - name: Check bootstrap_ansible_user exists for each target host
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['bootstrap_ansible_user is missing for host ' ~ item ~ '. Define the initial SSH user Ansible should use for playbooks/bootstrap-ovh.yml.'] }}"
+    preflight_errors: "{{ preflight_errors + ['bootstrap_ansible_user is missing for host ' ~ item ~ '. Define the initial SSH user Ansible should use for playbooks/bootstrap.yml.'] }}"
   loop: "{{ preflight_group_hosts }}"
   vars:
     preflight_target_hostvars: "{{ hostvars[item] | default({}) }}"
@@ -73,13 +73,15 @@
 
 - name: Check target Ubuntu release selection
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['ovh_bootstrap_ubuntu_release must be jammy or noble. Current value: ' ~ (ovh_bootstrap_ubuntu_release | string) ~ '.'] }}"
-  when: ovh_bootstrap_ubuntu_release is not defined or (ovh_bootstrap_ubuntu_release | string) not in ['jammy', 'noble']
+    preflight_errors: "{{ preflight_errors + ['bootstrap_target_ubuntu_release must be jammy or noble. Current value: ' ~ (bootstrap_target_ubuntu_release | string) ~ '.'] }}"
+  when: bootstrap_target_ubuntu_release is not defined or (bootstrap_target_ubuntu_release | string) not in ['jammy', 'noble']
 
 - name: Check HTTPS firewall path
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['ufw_allowed_tcp_public must include 443 so Traefik can terminate HTTPS for LiveSync clients.'] }}"
-  when: ufw_allowed_tcp_public is not defined or 443 not in (ufw_allowed_tcp_public | list)
+    preflight_errors: "{{ preflight_errors + ['ufw_allowed_tcp_public must include 443 while the Obsidian feature stack is enabled.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - ufw_allowed_tcp_public is not defined or 443 not in (ufw_allowed_tcp_public | list)
 
 - name: Check ops user
   ansible.builtin.set_fact:
@@ -89,46 +91,51 @@
 - name: Check Traefik ACME email
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['traefik_acme_email is unset or placeholder: ' ~ (traefik_acme_email | string) ~ '.'] }}"
-  when: traefik_acme_email is not defined or '@' not in (traefik_acme_email | string) or 'example.invalid' in (traefik_acme_email | string) or 'change-me@' in (traefik_acme_email | string)
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - traefik_acme_email is not defined or '@' not in (traefik_acme_email | string) or 'example.invalid' in (traefik_acme_email | string) or 'change-me@' in (traefik_acme_email | string)
 
 - name: Check ACME DNS provider
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['acme_dns_provider is unset.'] }}"
-  when: acme_dns_provider is not defined or (acme_dns_provider | string | trim) == ''
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - acme_dns_provider is not defined or (acme_dns_provider | string | trim) == ''
 
 - name: Check ACME env exists
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['acme_env is empty. DNS-01 certificate issuance cannot work without provider credentials.'] }}"
-  when: acme_env is not defined or (acme_env | length) == 0
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - acme_env is not defined or (acme_env | length) == 0
 
 - name: Check ACME env placeholder values
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['acme_env still contains placeholder values. Replace all REPLACE_ME entries with real DNS provider credentials.'] }}"
   when:
+    - feature_obsidian_enabled | default(true) | bool
     - acme_env is defined
     - (acme_env | to_nice_yaml) is search('REPLACE_ME')
 
 - name: Check CouchDB admin credentials
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['couchdb_admin_user or couchdb_admin_password is unset or placeholder.'] }}"
-  when: couchdb_admin_user is not defined or couchdb_admin_password is not defined or (couchdb_admin_user | string | trim) == '' or (couchdb_admin_password | string | trim) == '' or 'REPLACE_ME' in (couchdb_admin_password | string)
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - couchdb_admin_user is not defined or couchdb_admin_password is not defined or (couchdb_admin_user | string | trim) == '' or (couchdb_admin_password | string | trim) == '' or 'REPLACE_ME' in (couchdb_admin_password | string)
 
 - name: Check human vault definitions exist
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain exactly the human vault definitions needed for this deployment.'] }}"
-  when: couchdb_vaults is not defined or (couchdb_vaults | length) < 3
-
-- name: Check required human vault names
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['couchdb_vaults is missing one or more required entries: you, kid1, kid2.'] }}"
+    preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain at least one human vault definition while the Obsidian feature stack is enabled.'] }}"
   when:
-    - couchdb_vaults is defined
-    - (preflight_required_human_vault_names | difference(couchdb_vaults | map(attribute='name') | list) | length) > 0
+    - feature_obsidian_enabled | default(true) | bool
+    - couchdb_vaults is not defined or (couchdb_vaults | length) == 0
 
 - name: Check duplicate human vault names
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Duplicate human vault names found in couchdb_vaults. Names must be unique.'] }}"
   when:
+    - feature_obsidian_enabled | default(true) | bool
     - couchdb_vaults is defined
     - ((couchdb_vaults | map(attribute='name') | list | unique | length) != (couchdb_vaults | map(attribute='name') | list | length))
 
@@ -136,6 +143,7 @@
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB db_name values found in couchdb_vaults.'] }}"
   when:
+    - feature_obsidian_enabled | default(true) | bool
     - couchdb_vaults is defined
     - ((couchdb_vaults | map(attribute='db_name') | list | unique | length) != (couchdb_vaults | map(attribute='db_name') | list | length))
 
@@ -143,6 +151,7 @@
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB user values found in couchdb_vaults.'] }}"
   when:
+    - feature_obsidian_enabled | default(true) | bool
     - couchdb_vaults is defined
     - ((couchdb_vaults | map(attribute='user') | list | unique | length) != (couchdb_vaults | map(attribute='user') | list | length))
 
@@ -150,14 +159,9 @@
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['One or more couchdb_vaults entries still contains placeholder password values.'] }}"
   when:
+    - feature_obsidian_enabled | default(true) | bool
     - couchdb_vaults is defined
     - (couchdb_vaults | to_nice_yaml) is search('REPLACE_ME')
-
-- name: Check expected agent vault set
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['agent_vaults does not match the expected set: aegis, helios, relay, quartermaster.'] }}"
-  when:
-    - agent_vaults is not defined or (agent_vaults | sort) != (preflight_expected_agent_vaults | sort)
 
 - name: Check duplicate agent vault names
   ansible.builtin.set_fact:
@@ -176,13 +180,13 @@
 
 - name: Check restic repositories set
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_repo_h4f and restic_repo_laptop must both be set to non-placeholder repository targets.'] }}"
-  when: restic_repo_h4f is not defined or restic_repo_laptop is not defined or 'example.invalid' in (restic_repo_h4f | string) or 'laptop.tailnet' in (restic_repo_laptop | string)
+    preflight_errors: "{{ preflight_errors + ['restic_repo_primary and restic_repo_secondary must both be set to non-placeholder repository targets.'] }}"
+  when: restic_repo_primary is not defined or restic_repo_secondary is not defined or 'example.invalid' in (restic_repo_primary | string) or 'example.invalid' in (restic_repo_secondary | string)
 
 - name: Check restic passwords set
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_password_h4f and/or restic_password_laptop is unset or placeholder.'] }}"
-  when: restic_password_h4f is not defined or restic_password_laptop is not defined or 'REPLACE_ME' in (restic_password_h4f | string) or 'REPLACE_ME' in (restic_password_laptop | string)
+    preflight_errors: "{{ preflight_errors + ['restic_password_primary and/or restic_password_secondary is unset or placeholder.'] }}"
+  when: restic_password_primary is not defined or restic_password_secondary is not defined or 'REPLACE_ME' in (restic_password_primary | string) or 'REPLACE_ME' in (restic_password_secondary | string)
 
 - name: Check restic backup path list
   ansible.builtin.set_fact:
@@ -237,8 +241,8 @@
 - name: Build aggregated preflight report content
   ansible.builtin.set_fact:
     preflight_report: |
-      CrownOps OVH Core Preflight Report
-      =================================
+      CrownOps Deploy Core Preflight Report
+      ================================
       Target group: {{ preflight_target_group }}
       Hosts: {{ preflight_group_hosts | join(', ') if (preflight_group_hosts | length) > 0 else 'none' }}
       base_domain: {{ base_domain | default('UNSET') }}

@@ -16,7 +16,7 @@
     content: |
       # Human Vault Handoff
 
-      Base URL: https://notes.{{ ops_domain }}
+      Base URL: https://{{ obsidian_service_subdomain }}.{{ ops_domain }}
 
       {% for v in couchdb_vaults %}
       ## {{ v.name }}

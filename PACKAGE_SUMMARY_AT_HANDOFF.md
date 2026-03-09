@@ -1,20 +1,24 @@
 # Package Summary at Handoff
 
 ## What this package is
-A structured Ansible deployment scaffold for the OVHcloud private core host that will later expand to additional internal services.
+
+A structured Ansible deployment scaffold for a CrownOps remote environment that can expand with additional internal services over time.
 
 ## Architectural baseline locked into this package
-- OVH = private core
+
+- generic fresh-host bootstrap consumed from `crownops.deploy_base`
 - Docker + Compose plugin
-- Traefik from day one
+- feature-oriented application deployment via `playbooks/features/`
+- Traefik for HTTP ingress when a feature requires it
 - HTTPS required for Obsidian LiveSync mobile compatibility
-- Tailscale-only access for now
+- Tailscale access support
 - CouchDB backend for human Obsidian vaults
-- Separate CouchDB database/user per human vault
-- Plain markdown vault directories for agents
-- restic encrypted backups to H4F and laptop
+- separate CouchDB database and user per human vault
+- plain markdown vault directories for agents
+- encrypted restic backups to primary and secondary targets
 
 ## Human vault plan
+
 - you
 - kid1
 - kid2
@@ -26,6 +30,7 @@ Each vault gets:
 - dedicated backup coverage
 
 ## Agent vault plan
+
 One vault per agent:
 - Aegis
 - Helios
@@ -33,17 +38,12 @@ One vault per agent:
 - Quartermaster
 
 ## What remains before production use
+
 - fill all environment-specific variables and secrets
-- select and wire real DNS provider / ACME DNS challenge settings
-- join OVH to Tailscale
+- select and wire real DNS provider and ACME DNS challenge settings
+- join the target host to Tailscale if enabled
 - validate Traefik HTTPS path
 - validate CouchDB behind Traefik
 - validate Android Obsidian LiveSync end-to-end
 - validate backups and restore
 - hand off kid vault setup with user-owned final encryption passphrases
-
-
-## Preflight validation added
-
-The package now includes `playbooks/preflight.yml` and the `preflight_validate` role.
-It aggregates configuration issues across inventory, placeholders, vault definitions, backup targets, Tailscale settings, and remote connectivity, writes a local report, and fails only after the full preflight completes.

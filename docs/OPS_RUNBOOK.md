@@ -1,16 +1,21 @@
 # Ops Runbook
 
 ## Core commands
-Bootstrap:
-`ansible-playbook playbooks/bootstrap-ovh.yml`
 
-Deploy services:
+Preferred wrapper:
+`./scripts/deploy.sh`
+
+Bootstrap only:
+`ansible-playbook playbooks/bootstrap.yml`
+
+Deploy enabled features:
 `ansible-playbook playbooks/site.yml`
 
 Deploy backup jobs:
-`ansible-playbook playbooks/backup-setup.yml`
+`ansible-playbook playbooks/backup.yml`
 
 ## Manual checks
+
 Docker:
 `docker ps`
 

@@ -1,10 +1,10 @@
 ---
-project_name: crownops-ovh-core
+project_name: crownops-deploy-core
 base_domain: example.invalid
 ops_domain: ops.example.invalid
 
 timezone: America/Edmonton
-ovh_bootstrap_ubuntu_release: jammy
+bootstrap_target_ubuntu_release: jammy
 
 ops_user: deploy
 ops_group: deploy
@@ -14,6 +14,9 @@ ssh_pubkeys:
 
 ufw_allowed_tcp_public: [22, 443]
 ufw_allowed_udp_public: []
+
+feature_obsidian_enabled: true
+obsidian_service_subdomain: notes
 
 traefik_dir: /opt/traefik
 traefik_network_name: proxy
@@ -54,10 +57,10 @@ agent_vaults:
   - relay
   - quartermaster
 
-restic_repo_h4f: sftp:backup@h4f.example.invalid:/srv/restic/ovh-core
-restic_repo_laptop: sftp:backup@laptop.tailnet:/srv/restic/ovh-core
-restic_password_h4f: "REPLACE_ME"
-restic_password_laptop: "REPLACE_ME"
+restic_repo_primary: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
+restic_repo_secondary: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
+restic_password_primary: "REPLACE_ME"
+restic_password_secondary: "REPLACE_ME"
 restic_backup_paths:
   - /opt/traefik
   - /opt/couchdb
@@ -71,5 +74,5 @@ restic_retention_weekly: 8
 restic_retention_monthly: 6
 
 tailscale_auth_key: "REPLACE_ME"
-tailscale_hostname: ovh-core-01
+tailscale_hostname: core-01
 tailscale_tags: []

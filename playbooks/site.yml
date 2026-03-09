@@ -1,11 +1,2 @@
 ---
-- name: Deploy OVH core services
-  hosts: ovh_core
-  become: true
-  roles:
-    - role: traefik_core
-      tags: [traefik, proxy]
-    - role: couchdb_livesync
-      tags: [couchdb, notes]
-    - role: bootstrap_outputs
-      tags: [outputs, handoff]
+- import_playbook: features/obsidian.yml

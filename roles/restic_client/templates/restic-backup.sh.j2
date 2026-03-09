@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
-TARGET="${1:-h4f}"
+TARGET="${1:-primary}"
 case "$TARGET" in
-  h4f)
-    source /opt/crownops-backup/restic-h4f.env
+  primary)
+    source /opt/crownops-backup/restic-primary.env
     ;;
-  laptop)
-    source /opt/crownops-backup/restic-laptop.env
+  secondary)
+    source /opt/crownops-backup/restic-secondary.env
     ;;
   *)
-    echo "Usage: $0 [h4f|laptop]" >&2
+    echo "Usage: $0 [primary|secondary]" >&2
     exit 1
     ;;
 esac

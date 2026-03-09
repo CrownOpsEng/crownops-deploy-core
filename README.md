@@ -1,21 +1,19 @@
-# CrownOps OVH Core Ansible Package
+# CrownOps Deploy Core
 
-Private-repo-ready Ansible scaffold for the OVHcloud private core host.
+Modular Ansible deployment repo for CrownOps remote environments.
 
-Primary objective in this package:
-- stand up the OVH private core foundation
-- prepare Traefik + HTTPS + CouchDB for Obsidian LiveSync human vaults
-- prepare plain on-disk agent vaults
-- prepare encrypted restic backup jobs to H4F and laptop
+This repo is the environment-facing deployment layer:
+- consume the shared `crownops.deploy_base` collection for fresh-host bootstrap
+- keep inventory, deployment flow, and feature wiring separate from the reusable baseline
+- let features such as Obsidian be enabled, disabled, or replaced without rewriting the base deployment path
 
 Read first:
-- `docs/QUICKSTART_FRESH_HOST.md`
+- `docs/QUICKSTART.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 - `docs/DEPLOYMENT_SEQUENCE.md`
 - `docs/SECRETS_MODEL.md`
 - `docs/RESTORE.md`
 - `PACKAGE_SUMMARY_AT_HANDOFF.md`
-
 
 ## Preflight
 
@@ -32,6 +30,6 @@ Behavior:
 - fails only after the full validation pass completes
 
 Use this before:
-- `playbooks/bootstrap-ovh.yml`
+- `playbooks/bootstrap.yml`
 - `playbooks/site.yml`
-- `playbooks/backup-setup.yml`
+- `playbooks/backup.yml`
