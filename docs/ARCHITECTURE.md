@@ -25,6 +25,8 @@ Current feature set:
 
 `playbooks/backup.yml` uses the `crownops.deploy_services.restic_host_backups` role.
 
+`playbooks/lockdown.yml` is a site-local post-bootstrap hardening step that keeps SSH on Tailscale while removing public SSH when configured.
+
 This keeps the site repo thin while still allowing features to evolve independently.
 
 ## Human vaults

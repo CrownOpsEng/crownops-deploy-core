@@ -13,9 +13,11 @@ This file states exactly what is done, what is not done, and what gaps remain.
   - `preflight.yml`
   - `site.yml`
   - `backup.yml`
+  - `lockdown.yml`
   - `features/obsidian.yml`
 - Roles created:
   - `core_layout`
+  - `network_lockdown`
   - `preflight_validate`
 - Wrapper scripts created:
   - `scripts/install-collections.sh`
@@ -36,6 +38,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - No additional feature stacks are included yet
 - No Ansible Vault files are included
 - The services collection has not yet been validated by a second consuming site repo
+- No live Tailscale-validated SSH lockdown has been executed yet
 
 ## Gaps that must be filled before deployment
 

@@ -34,6 +34,7 @@ It will:
 - bootstrap a brand new host when needed
 - deploy enabled features
 - configure backup jobs
+- optionally run SSH lockdown when you pass `--lockdown`
 
 By default it prompts before each phase. Use `--yes` for unattended execution.
 
@@ -68,6 +69,11 @@ At minimum set:
 - backup target credentials
 - Tailscale values if Tailscale is enabled
 
+Notes:
+- Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
+- if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh` after confirming SSH over Tailscale works
+- backup transport supports SSH keys by setting the `restic_*_ssh_private_key` and `restic_*_ssh_known_hosts` variables
+
 ## Secrets
 
 Put secret values in `inventories/prod/group_vars/vault.yml`, then encrypt that file with Ansible Vault before the first real deployment.
@@ -83,6 +89,7 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/site.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/backup.yml
+ansible-playbook -i inventories/prod/hosts.yml playbooks/lockdown.yml
 ```
 
 ## Feature model

@@ -41,3 +41,6 @@ jobs:
 
       - name: Syntax check backup
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/backup.yml
+
+      - name: Syntax check lockdown
+        run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/lockdown.yml

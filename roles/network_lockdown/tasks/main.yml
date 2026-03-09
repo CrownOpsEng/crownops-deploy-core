@@ -1,0 +1,43 @@
+---
+- name: Read Tailscale status
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - status
+      - --json
+  register: network_lockdown_tailscale_status
+  changed_when: false
+  failed_when: network_lockdown_tailscale_status.rc != 0
+  when: lockdown_require_tailscale_running | bool
+
+- name: Assert Tailscale is running before SSH lockdown
+  ansible.builtin.assert:
+    that:
+      - (network_lockdown_tailscale_status.stdout | from_json).BackendState == "Running"
+    fail_msg: "Tailscale is not running. Confirm tailnet join and remote access over tailscale0 before disabling public SSH."
+  when: lockdown_require_tailscale_running | bool
+
+- name: Allow SSH on the Tailscale interface
+  ansible.builtin.command:
+    argv:
+      - ufw
+      - allow
+      - in
+      - on
+      - "{{ lockdown_tailscale_interface }}"
+      - to
+      - any
+      - port
+      - "{{ lockdown_ssh_port | string }}"
+      - proto
+      - tcp
+  register: network_lockdown_allow_tailscale_ssh
+  changed_when: "'Skipping adding existing rule' not in network_lockdown_allow_tailscale_ssh.stdout"
+
+- name: Remove public SSH exposure after Tailscale SSH path is allowed
+  community.general.ufw:
+    rule: allow
+    port: "{{ lockdown_ssh_port }}"
+    proto: tcp
+    delete: true
+  when: lockdown_disable_public_ssh | bool

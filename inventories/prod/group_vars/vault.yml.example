@@ -8,12 +8,20 @@
 # 3. encrypt it locally with: ansible-vault encrypt inventories/prod/group_vars/vault.yml
 # 4. keep the resulting vault.yml untracked
 #
-# Optional split:
+# Settings/secrets split:
 # - keep non-secret settings in all.yml
 # - keep only secret values here and include them with inventory loading
 
-# Example secret overrides:
-# couchdb_admin_password: "REPLACE_ME"
-# restic_password_primary: "REPLACE_ME"
-# restic_password_secondary: "REPLACE_ME"
-# tailscale_auth_key: "REPLACE_ME"
+# Secret overrides:
+couchdb_admin_password: "REPLACE_ME"
+restic_password_primary: "REPLACE_ME"
+restic_password_secondary: "REPLACE_ME"
+restic_primary_ssh_private_key: |
+  REPLACE_ME
+restic_primary_ssh_known_hosts: |
+  REPLACE_ME
+restic_secondary_ssh_private_key: |
+  REPLACE_ME
+restic_secondary_ssh_known_hosts: |
+  REPLACE_ME
+tailscale_auth_key: "REPLACE_ME"

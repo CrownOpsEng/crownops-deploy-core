@@ -1,0 +1,5 @@
+---
+lockdown_tailscale_interface: tailscale0
+lockdown_ssh_port: 22
+lockdown_disable_public_ssh: true
+lockdown_require_tailscale_running: true

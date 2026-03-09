@@ -49,3 +49,4 @@ Use this before:
 - `playbooks/bootstrap.yml`
 - `playbooks/site.yml`
 - `playbooks/backup.yml`
+- `playbooks/lockdown.yml`

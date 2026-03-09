@@ -61,6 +61,16 @@ restic_repo_primary: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
 restic_repo_secondary: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
 restic_password_primary: "REPLACE_ME"
 restic_password_secondary: "REPLACE_ME"
+restic_primary_ssh_private_key: ""
+restic_primary_ssh_known_hosts: ""
+restic_primary_sftp_command: ""
+restic_secondary_ssh_private_key: ""
+restic_secondary_ssh_known_hosts: ""
+restic_secondary_sftp_command: ""
+restic_pre_backup_commands:
+  - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
+restic_post_backup_commands:
+  - "docker compose -f /opt/couchdb/docker-compose.yml start couchdb"
 restic_backup_paths:
   - /opt/traefik
   - /opt/couchdb
@@ -76,3 +86,7 @@ restic_retention_monthly: 6
 tailscale_auth_key: "REPLACE_ME"
 tailscale_hostname: core-01
 tailscale_tags: []
+
+lockdown_tailscale_interface: tailscale0
+lockdown_ssh_port: 22
+lockdown_disable_public_ssh: true

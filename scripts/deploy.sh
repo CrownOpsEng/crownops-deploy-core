@@ -11,6 +11,7 @@ RUN_PREFLIGHT=1
 RUN_BOOTSTRAP=1
 RUN_SITE=1
 RUN_BACKUP=1
+RUN_LOCKDOWN=0
 
 usage() {
   cat <<'USAGE'
@@ -24,6 +25,7 @@ Options:
   --skip-bootstrap         Skip bootstrap
   --skip-site              Skip site deployment
   --skip-backup            Skip backup configuration
+  --lockdown               Run SSH lockdown after deployment phases
   -h, --help               Show this help
 USAGE
 }
@@ -97,6 +99,10 @@ while [[ $# -gt 0 ]]; do
       RUN_BACKUP=0
       shift
       ;;
+    --lockdown)
+      RUN_LOCKDOWN=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -143,5 +149,6 @@ run_playbook() {
 [[ "$RUN_BOOTSTRAP" -eq 1 ]] && run_playbook playbooks/bootstrap.yml
 [[ "$RUN_SITE" -eq 1 ]] && run_playbook playbooks/site.yml
 [[ "$RUN_BACKUP" -eq 1 ]] && run_playbook playbooks/backup.yml
+[[ "$RUN_LOCKDOWN" -eq 1 ]] && run_playbook playbooks/lockdown.yml
 
 echo "Deploy sequence complete."

@@ -1,0 +1,7 @@
+---
+- name: Lock down public SSH after Tailscale validation
+  hosts: core_hosts
+  become: true
+  roles:
+    - role: network_lockdown
+      tags: [lockdown, ssh, tailscale, firewall]

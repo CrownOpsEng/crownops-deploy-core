@@ -17,6 +17,9 @@ Deploy enabled features:
 Deploy backup jobs:
 `ansible-playbook playbooks/backup.yml`
 
+Lock down public SSH after Tailscale validation:
+`./scripts/lockdown.sh`
+
 ## Manual checks
 
 Docker:

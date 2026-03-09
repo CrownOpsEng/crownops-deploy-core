@@ -52,6 +52,12 @@ This installs:
 - restic backup to the primary target works
 - restic backup to the secondary target works when reachable
 
-## 8. Handoff kid vaults
+## 8. Lock down public SSH after Tailscale access is confirmed
+
+`ansible-playbook playbooks/lockdown.yml`
+
+This allows SSH on `tailscale0` first, then removes public SSH when `lockdown_disable_public_ssh` is enabled.
+
+## 9. Handoff kid vaults
 
 Each kid should complete or rotate their final LiveSync encryption passphrase.
