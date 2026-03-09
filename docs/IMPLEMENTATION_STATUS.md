@@ -34,7 +34,6 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - No backup repo init validation has been run
 - No restore test has been executed
 - No additional feature stacks are included yet
-- No CI pipeline is included
 - No Ansible Vault files are included
 - The services collection has not yet been validated by a second consuming site repo
 

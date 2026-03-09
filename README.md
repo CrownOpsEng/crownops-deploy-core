@@ -42,6 +42,9 @@ Public repo hygiene:
 - real local inventory and vars stay untracked
 - `scripts/init-local-config.sh` creates the local working files from examples
 
+Quality controls:
+- GitHub Actions CI scaffolds example local config, installs collections from GitHub, and syntax-checks the site playbooks
+
 Use this before:
 - `playbooks/bootstrap.yml`
 - `playbooks/site.yml`

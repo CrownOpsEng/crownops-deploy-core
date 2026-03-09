@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install "ansible-core==2.17.*"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Scaffold local config
+        run: ./scripts/init-local-config.sh
+
+      - name: Install collections
+        run: ./scripts/install-collections.sh
+
+      - name: Syntax check preflight
+        run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/preflight.yml
+
+      - name: Syntax check bootstrap
+        run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml
+
+      - name: Syntax check site
+        run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/site.yml
+
+      - name: Syntax check backup
+        run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/backup.yml
