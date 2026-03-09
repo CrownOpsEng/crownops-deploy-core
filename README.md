@@ -3,6 +3,7 @@
 Modular Ansible deployment repo for CrownOps remote environments.
 
 This repo is the environment-facing deployment layer:
+
 - consume the shared `crownops.deploy_base` collection for fresh-host bootstrap
 - consume the shared `crownops.deploy_base` collection for staged post-join SSH lockdown
 - consume the shared `crownops.deploy_services` collection for reusable service stacks and host backup automation
@@ -10,16 +11,19 @@ This repo is the environment-facing deployment layer:
 - let features such as Obsidian be enabled, disabled, or replaced without rewriting the base deployment path
 
 This repo should stay thin:
+
 - local inventory and examples
 - wrapper scripts and operator docs
 - site playbooks
 - only truly site-local roles such as layout and preflight
 
 Configuration model:
+
 - `inventories/prod/group_vars/all.yml` is the primary non-secret configuration surface
 - `inventories/prod/group_vars/vault.yml` holds secret values only
 
 Read first:
+
 - `docs/QUICKSTART.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 - `docs/DEPLOYMENT_SEQUENCE.md`
@@ -38,20 +42,24 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ```
 
 Behavior:
+
 - aggregates all validation findings first
 - writes a local report under `reports/`
 - fails only after the full validation pass completes
 
 Public repo hygiene:
+
 - tracked files end in `.example`
 - real local inventory and vars stay untracked
 - `scripts/init-local-config.sh` creates the local working files from examples
 
 Quality controls:
+
 - GitHub Actions CI scaffolds example local config, installs collections from GitHub, and syntax-checks the site playbooks
 - staged lockdown uses explicit enable and confirm gates plus break-glass support, so a casual deploy run does not remove public SSH
 
 Use this before:
+
 - `playbooks/bootstrap.yml`
 - `playbooks/site.yml`
 - `playbooks/backup.yml`

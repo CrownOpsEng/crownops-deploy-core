@@ -24,6 +24,7 @@ A structured Ansible deployment scaffold for a CrownOps remote environment that 
 - user_c
 
 Each vault gets:
+
 - dedicated CouchDB database
 - dedicated CouchDB user
 - dedicated LiveSync encryption passphrase
@@ -32,6 +33,7 @@ Each vault gets:
 ## Example local workspace plan
 
 One workspace per local content area:
+
 - shared-docs
 - operations
 - scratch

@@ -53,6 +53,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 ## Resume point without analysis
 
 If you come back cold, do this in order:
+
 1. Read `docs/DEPLOYMENT_SEQUENCE.md`.
 2. Fill inventory and vars.
 3. Put secrets into Ansible Vault.

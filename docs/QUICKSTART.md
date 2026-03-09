@@ -29,6 +29,7 @@ The preferred operator entrypoint is:
 ```
 
 It will:
+
 - install required collections from GitHub
 - run preflight
 - bootstrap a brand new host when needed
@@ -47,9 +48,11 @@ By default it prompts before each phase. Use `--yes` for unattended execution.
 ## Minimum repo setup
 
 Primary configuration surface:
+
 - `inventories/prod/group_vars/all.yml`
 
 That file should remain the main place where you enable features and define non-secret behavior:
+
 - domains and ingress settings
 - host bootstrap settings
 - synced Obsidian account definitions
@@ -57,21 +60,25 @@ That file should remain the main place where you enable features and define non-
 - backup retention, backup paths, and lockdown behavior
 
 Secrets belong in:
+
 - `inventories/prod/group_vars/vault.yml`
 
 Tracked templates:
+
 - `inventories/prod/hosts.yml.example`
 - `inventories/prod/group_vars/all.yml.example`
 - `inventories/prod/group_vars/core_hosts.yml.example`
 - `inventories/prod/group_vars/vault.yml.example`
 
 Local working files created by `./scripts/init-local-config.sh`:
+
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
 - `inventories/prod/group_vars/core_hosts.yml`
 - `inventories/prod/group_vars/vault.yml`
 
 At minimum set:
+
 - `ansible_host`
 - `bootstrap_ansible_user`
 - `ansible_user`
@@ -84,6 +91,7 @@ At minimum set:
 - Tailscale hostname/tags in `all.yml` and optional auth key in `vault.yml`
 
 Notes:
+
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
 - if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works
 - backup transport supports SSH keys by setting the `restic_*_ssh_private_key` and `restic_*_ssh_known_hosts` variables
@@ -95,6 +103,7 @@ Notes:
 Put secret values in `inventories/prod/group_vars/vault.yml`, then encrypt that file with Ansible Vault before the first real deployment.
 
 Recommended split:
+
 - `all.yml`: domains, feature flags, ports, paths, usernames, and other non-secret structure
 - `vault.yml`: passwords, SSH private keys, pinned `known_hosts`, and optional `tailscale_auth_key`
 
@@ -117,6 +126,7 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/lockdown.yml -e lockdow
 `playbooks/site.yml` imports feature playbooks from `playbooks/features/`.
 
 Current feature set:
+
 - Obsidian via Traefik + CouchDB LiveSync
 
 This keeps application features removable without changing the baseline deployment path.

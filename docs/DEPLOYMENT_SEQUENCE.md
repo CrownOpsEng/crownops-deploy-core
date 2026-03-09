@@ -3,15 +3,18 @@
 ## 1. Fill variables and secrets
 
 First run:
+
 - `./scripts/init-local-config.sh`
 
 Then update:
+
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
 - `inventories/prod/group_vars/core_hosts.yml`
 - `inventories/prod/group_vars/vault.yml`
 
 Important:
+
 - set `bootstrap_ansible_user` to the existing first-login account on the host, usually `root`
 - keep `ansible_user` as the steady-state operator account Ansible should use after bootstrap, usually `deploy`
 - set `bootstrap_target_ubuntu_release` to `jammy` for Ubuntu 22.04 or `noble` for Ubuntu 24.04
@@ -21,6 +24,7 @@ Important:
 `./scripts/install-collections.sh`
 
 This installs:
+
 - `crownops.deploy_base`
 - `crownops.deploy_services`
 
@@ -61,6 +65,7 @@ Restrictive phase:
 `./scripts/lockdown.sh --confirm`
 
 This phase:
+
 - requires both `lockdown_enabled=true` and `lockdown_confirmed=true`
 - short-circuits when `lockdown_break_glass_file` exists
 - verifies `tailscale0`, `tailscale status --json`, and a Tailscale IPv4 address before broad SSH removal

@@ -12,6 +12,7 @@ This repo is the environment-specific deployment layer for remote hosts.
 - site-local layout and readiness validation kept in this repo
 
 Dependency direction:
+
 - inventory and examples in `crownops-deploy-core`
 - site playbooks in `crownops-deploy-core`
 - reusable service stacks in `crownops.deploy_services`
@@ -22,6 +23,7 @@ Dependency direction:
 `playbooks/site.yml` imports feature playbooks from `playbooks/features/`.
 
 Current feature set:
+
 - Obsidian via the `crownops.deploy_services.obsidian_livesync` role
 
 `playbooks/backup.yml` uses the `crownops.deploy_services.restic_host_backups` role.
@@ -37,6 +39,7 @@ This keeps the site repo thin while still allowing features to evolve independen
 - user_c vault
 
 Each gets its own:
+
 - CouchDB database
 - CouchDB user
 - LiveSync encryption passphrase
