@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import re
+import subprocess
 from typing import Any
 
 from ansible_config_wizard.generators import fingerprint, generate_value
@@ -10,6 +11,20 @@ from ansible_config_wizard.generators import fingerprint, generate_value
 def sanitize_identifier(value: str) -> str:
     sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
     return sanitized or "item"
+
+
+def scan_known_hosts(host: str, port: int | str) -> str:
+    try:
+        result = subprocess.run(
+            ["ssh-keyscan", "-p", str(port), host],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return ""
+    return (result.stdout or "").strip()
 
 
 def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
@@ -85,9 +100,20 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
 
     restic_targets = []
     vault_restic_target_secrets: dict[str, dict[str, Any]] = {}
+    restic_target_setup_notes = []
     for item in data.get("restic_targets_input", []):
         key = sanitize_identifier(item["name"])
-        if item.get("generate_ssh_key", False):
+        target_mode = item.get("target_mode") or "sftp_ssh"
+        repository = item.get("repository", "")
+        known_hosts = item.get("ssh_known_hosts", "") or ""
+        if target_mode == "sftp_ssh":
+            repository = f"sftp:{item['sftp_user']}@{item['sftp_host']}:{item['sftp_path']}"
+            if not known_hosts:
+                known_hosts = scan_known_hosts(item["sftp_host"], item.get("sftp_port", 22))
+        elif target_mode == "local_path":
+            repository = item["local_path"]
+
+        if target_mode == "sftp_ssh" and item.get("generate_ssh_key", False):
             keypair = generate_value("ed25519_keypair")
             ssh_private_key = keypair["private_key"]
             ssh_public_key = keypair["public_key"]
@@ -110,17 +136,31 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
                     }
                 )
 
+        if target_mode == "sftp_ssh":
+            restic_target_setup_notes.append(
+                {
+                    "name": item["name"],
+                    "host": item["sftp_host"],
+                    "port": item.get("sftp_port", 22),
+                    "user": item["sftp_user"],
+                    "path": item["sftp_path"],
+                    "repository": repository,
+                    "public_key": ssh_public_key,
+                    "known_hosts": known_hosts,
+                }
+            )
+
         vault_restic_target_secrets[key] = {
             "password": item["password"],
             "ssh_private_key": ssh_private_key or "",
-            "ssh_known_hosts": item.get("ssh_known_hosts", "") or "",
+            "ssh_known_hosts": known_hosts,
             "environment": item.get("environment", {}) or {},
         }
 
         restic_targets.append(
             {
                 "name": item["name"],
-                "repository": item["repository"],
+                "repository": repository,
                 "password_reference": f"{{{{ vault_restic_target_secrets.{key}.password }}}}",
                 "ssh_private_key_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_private_key | default('') }}}}",
                 "ssh_known_hosts_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_known_hosts | default('') }}}}",
@@ -131,6 +171,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data["restic_targets"] = restic_targets
     data["vault_restic_target_secrets"] = vault_restic_target_secrets
     data["generated_ssh_public_keys"] = generated_ssh_public_keys
+    data["restic_target_setup_notes"] = restic_target_setup_notes
 
     target_names = [item["name"] for item in restic_targets]
     if data.get("restic_enabled", True) and target_names:

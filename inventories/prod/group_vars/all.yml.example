@@ -59,31 +59,54 @@ local_markdown_workspaces:
   - operations
   - scratch
 
-restic_repo_primary: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
-restic_repo_secondary: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
-restic_password_primary: "{{ vault_restic_password_primary }}"
-restic_password_secondary: "{{ vault_restic_password_secondary }}"
-restic_primary_ssh_private_key: "{{ vault_restic_primary_ssh_private_key | default('') }}"
-restic_primary_ssh_known_hosts: "{{ vault_restic_primary_ssh_known_hosts | default('') }}"
-restic_primary_sftp_command: ""
-restic_secondary_ssh_private_key: "{{ vault_restic_secondary_ssh_private_key | default('') }}"
-restic_secondary_ssh_known_hosts: "{{ vault_restic_secondary_ssh_known_hosts | default('') }}"
-restic_secondary_sftp_command: ""
-restic_pre_backup_commands:
-  - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
-restic_post_backup_commands:
-  - "docker compose -f /opt/couchdb/docker-compose.yml start couchdb"
-restic_backup_paths:
-  - /opt/traefik
-  - /opt/couchdb
-  - /srv/crownops
-  - /etc/ssh
-  - /etc/fail2ban
-  - /etc/ufw
+restic_targets:
+  - name: laptop
+    repository: sftp:backup@laptop.example.invalid:/srv/restic/deploy-core
+    password: "{{ vault_restic_target_secrets.laptop.password }}"
+    ssh_private_key: "{{ vault_restic_target_secrets.laptop.ssh_private_key | default('') }}"
+    ssh_known_hosts: "{{ vault_restic_target_secrets.laptop.ssh_known_hosts | default('') }}"
+    environment: "{{ vault_restic_target_secrets.laptop.environment | default({}) }}"
+  - name: secondary-vps
+    repository: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
+    password: "{{ vault_restic_target_secrets.secondary_vps.password }}"
+    ssh_private_key: "{{ vault_restic_target_secrets.secondary_vps.ssh_private_key | default('') }}"
+    ssh_known_hosts: "{{ vault_restic_target_secrets.secondary_vps.ssh_known_hosts | default('') }}"
+    environment: "{{ vault_restic_target_secrets.secondary_vps.environment | default({}) }}"
 
-restic_retention_daily: 14
-restic_retention_weekly: 8
-restic_retention_monthly: 6
+restic_backup_jobs:
+  - name: host-foundation
+    paths:
+      - /etc/ssh
+      - /etc/fail2ban
+      - /etc/ufw
+    target_names: [laptop, secondary-vps]
+    tags: [profile:stateful-app, class:host]
+  - name: application-data
+    paths: []
+    target_names: [laptop, secondary-vps]
+    backup_schedule: "*-*-* 03:30:00"
+    backup_randomized_delay: 20m
+    maintenance_schedule: "Sun *-*-* 05:30:00"
+    maintenance_randomized_delay: 30m
+    retention_daily: 14
+    retention_weekly: 8
+    retention_monthly: 6
+    tags: [profile:stateful-app, class:data]
+
+restic_backup_contributions:
+  - job: host-foundation
+    paths:
+      - /opt/traefik
+    tags: [feature:edge-proxy]
+  - job: application-data
+    paths:
+      - /opt/couchdb
+      - /srv/crownops
+    pre_commands:
+      - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
+    post_commands:
+      - "docker compose -f /opt/couchdb/docker-compose.yml start couchdb"
+    tags: [feature:obsidian-livesync]
 
 tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
 tailscale_hostname: core-01

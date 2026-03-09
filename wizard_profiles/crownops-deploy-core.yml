@@ -282,11 +282,14 @@ sections:
     fields:
       - id: name
         label: Account name
+        help: Operator-facing label stored in inventory and handoff notes. Use a neutral alias here too if you want to avoid personal names anywhere in deployment records.
         required: true
       - id: db_name
         label: CouchDB database name override
+        help: Neutral identifiers such as crown1 are a good choice when you do not want personal names in database names.
       - id: user
         label: CouchDB username override
+        help: Neutral identifiers such as crown1_user are a good choice when you do not want personal names in CouchDB usernames.
       - id: password
         label: CouchDB account password
         secret: true
@@ -297,7 +300,7 @@ sections:
             length: 32
   - id: restic_targets
     title: Restic Backup Targets
-    description: One target per repository destination.
+    description: One target per repository destination. SFTP over SSH is the guided path for another VPS or your laptop.
     kind: repeatable
     when: "restic_enabled"
     collection_key: restic_targets_input
@@ -308,8 +311,37 @@ sections:
       - id: name
         label: Target name
         required: true
+      - id: target_mode
+        label: Target type
+        type: select
+        choices: [sftp_ssh, local_path, custom_repository_url]
+        default: sftp_ssh
+      - id: sftp_host
+        label: SFTP host
+        help: Hostname or IP for the backup destination.
+        when: "target_mode == 'sftp_ssh'"
+        required: true
+      - id: sftp_port
+        label: SFTP port
+        when: "target_mode == 'sftp_ssh'"
+        default: 22
+      - id: sftp_user
+        label: SFTP user
+        when: "target_mode == 'sftp_ssh'"
+        required: true
+      - id: sftp_path
+        label: Backup directory on the destination
+        help: Restic will create and manage the repository under this path.
+        when: "target_mode == 'sftp_ssh'"
+        required: true
+      - id: local_path
+        label: Local or mounted repository path
+        when: "target_mode == 'local_path'"
+        required: true
       - id: repository
         label: Restic repository URL
+        help: Only needed for non-guided repository types.
+        when: "target_mode == 'custom_repository_url'"
         required: true
       - id: password
         label: Restic repository password
@@ -323,14 +355,17 @@ sections:
         label: Generate dedicated backup SSH key pair
         type: confirm
         default: true
+        when: "target_mode == 'sftp_ssh'"
       - id: ssh_public_key
         label: Existing backup SSH public key
-        when: "not generate_ssh_key"
+        when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
       - id: ssh_private_key
         label: Existing backup SSH private key
-        when: "not generate_ssh_key"
+        when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
       - id: ssh_known_hosts
         label: SSH known_hosts pin line
+        help: Leave blank to let the wizard try ssh-keyscan now.
+        when: "target_mode == 'sftp_ssh'"
       - id: environment
         label: Extra environment variables for this target
         type: key_value

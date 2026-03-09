@@ -18,14 +18,19 @@ vault_couchdb_account_passwords:
   user_a: "REPLACE_ME"
   user_b: "REPLACE_ME"
   user_c: "REPLACE_ME"
-vault_restic_password_primary: "REPLACE_ME"
-vault_restic_password_secondary: "REPLACE_ME"
-vault_restic_primary_ssh_private_key: |
-  REPLACE_ME
-vault_restic_primary_ssh_known_hosts: |
-  REPLACE_ME
-vault_restic_secondary_ssh_private_key: |
-  REPLACE_ME
-vault_restic_secondary_ssh_known_hosts: |
-  REPLACE_ME
+vault_restic_target_secrets:
+  laptop:
+    password: "REPLACE_ME"
+    ssh_private_key: |
+      REPLACE_ME
+    ssh_known_hosts: |
+      REPLACE_ME
+    environment: {}
+  secondary_vps:
+    password: "REPLACE_ME"
+    ssh_private_key: |
+      REPLACE_ME
+    ssh_known_hosts: |
+      REPLACE_ME
+    environment: {}
 vault_tailscale_auth_key: ""

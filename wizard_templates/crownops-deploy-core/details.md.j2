@@ -35,6 +35,38 @@
 - No generated secret fingerprints captured.
 {% endif %}
 
+## Restic Target Setup
+
+{% if restic_target_setup_notes %}
+{% for target in restic_target_setup_notes %}
+- {{ target.name }}: `{{ target.repository }}`
+  Remote path: `{{ target.path }}`
+  Suggested remote prep:
+  ```bash
+  mkdir -p {{ target.path | replace('"', '\"') }}
+  ```
+{% if target.public_key %}
+  Add this public key to `{{ target.user }}` on `{{ target.host }}`:
+  ```text
+  {{ target.public_key }}
+  ```
+{% endif %}
+{% if target.known_hosts %}
+  Captured known_hosts pin:
+  ```text
+  {{ target.known_hosts }}
+  ```
+{% else %}
+  Capture and store the SSH host key before deployment:
+  ```bash
+  ssh-keyscan -p {{ target.port }} {{ target.host }}
+  ```
+{% endif %}
+{% endfor %}
+{% else %}
+- No SFTP backup target setup notes were generated.
+{% endif %}
+
 ## Raw Secret Values
 
 {% if include_secret_details %}
