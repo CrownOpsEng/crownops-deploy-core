@@ -123,6 +123,10 @@ sections:
 
           After you confirm access works, resume the wizard:
             ./scripts/configure.sh --answers-file {{ wizard_resume_state_path }}
+        commands_template: |
+          ssh-copy-id -i {{ managed_ssh_keypair.public_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
+          ssh -i {{ managed_ssh_keypair.private_key_path }} {{ bootstrap_ansible_user }}@{{ ansible_host }}
+          ./scripts/configure.sh --answers-file {{ wizard_resume_state_path }}
         prompt: Pause after installing and testing managed SSH access?
   - id: general
     title: General Deployment Settings
