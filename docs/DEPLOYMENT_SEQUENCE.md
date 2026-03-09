@@ -20,6 +20,10 @@ Important:
 
 `./scripts/install-collections.sh`
 
+This installs:
+- `crownops.deploy_base`
+- `crownops.deploy_services`
+
 ## 3. Run preflight
 
 `ansible-playbook playbooks/preflight.yml`

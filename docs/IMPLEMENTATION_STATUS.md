@@ -4,7 +4,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 
 ## Done in this package
 
-- Architecture aligned to a provider-agnostic deployment repo with a reusable base collection
+- Architecture aligned to a provider-agnostic site repo with reusable base and services collections
 - Ansible repo scaffold created
 - Inventory skeleton created
 - Group vars skeleton created
@@ -15,18 +15,8 @@ This file states exactly what is done, what is not done, and what gaps remain.
   - `backup.yml`
   - `features/obsidian.yml`
 - Roles created:
-  - `ops_users`
-  - `base_common`
-  - `base_hardening`
-  - `docker_engine`
-  - `tailscale_host`
-  - `vault_roots`
-  - `agent_vaults`
-  - `traefik_core`
-  - `couchdb_livesync`
-  - `restic_client`
-  - `systemd_timers`
-  - `bootstrap_outputs`
+  - `core_layout`
+  - `preflight_validate`
 - Wrapper scripts created:
   - `scripts/install-collections.sh`
   - `scripts/deploy.sh`
@@ -46,6 +36,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - No additional feature stacks are included yet
 - No CI pipeline is included
 - No Ansible Vault files are included
+- The services collection has not yet been validated by a second consuming site repo
 
 ## Gaps that must be filled before deployment
 

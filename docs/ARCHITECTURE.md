@@ -4,25 +4,28 @@
 
 This repo is the environment-specific deployment layer for remote hosts.
 
-## Stack baseline
+## Dependency layers
 
 - fresh-host bootstrap delegated to `crownops.deploy_base`
-- Docker Engine + Compose plugin
-- Traefik reverse proxy
-- HTTPS required for Obsidian LiveSync Android compatibility
-- Tailscale support
-- CouchDB backend for human vaults
-- plain markdown on-disk agent vaults
-- restic encrypted backups to primary and secondary targets
+- reusable service and backup stacks delegated to `crownops.deploy_services`
+- site-local layout and readiness validation kept in this repo
+
+Dependency direction:
+- inventory and examples in `crownops-deploy-core`
+- site playbooks in `crownops-deploy-core`
+- reusable service stacks in `crownops.deploy_services`
+- reusable host foundation in `crownops.deploy_base`
 
 ## Feature structure
 
 `playbooks/site.yml` imports feature playbooks from `playbooks/features/`.
 
 Current feature set:
-- Obsidian via Traefik + CouchDB LiveSync
+- Obsidian via the `crownops.deploy_services.obsidian_livesync` role
 
-This keeps feature deployments removable without changing the baseline bootstrap path.
+`playbooks/backup.yml` uses the `crownops.deploy_services.restic_host_backups` role.
+
+This keeps the site repo thin while still allowing features to evolve independently.
 
 ## Human vaults
 

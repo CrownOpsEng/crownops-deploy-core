@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COLLECTIONS_PATH="${ROOT_DIR}/.ansible/collections"
 PUBLIC_REQUIREMENTS="${ROOT_DIR}/collections/requirements.yml"
 BASE_COLLECTION_SOURCE="${CROWNOPS_BASE_COLLECTION_SOURCE:-git+https://github.com/CrownOpsEng/crownops-deploy-base.git}"
+SERVICES_COLLECTION_SOURCE="${CROWNOPS_SERVICES_COLLECTION_SOURCE:-git+https://github.com/CrownOpsEng/crownops-deploy-services.git}"
 
 die() {
   echo "ERROR: $*" >&2
@@ -31,12 +32,15 @@ command -v ansible-galaxy >/dev/null 2>&1 || die "ansible-galaxy is required on 
 
 mkdir -p "${COLLECTIONS_PATH}"
 
-echo "[1/3] Installing public collection dependencies into ${COLLECTIONS_PATH}"
+echo "[1/4] Installing public collection dependencies into ${COLLECTIONS_PATH}"
 retry ansible-galaxy collection install -p "${COLLECTIONS_PATH}" -r "${PUBLIC_REQUIREMENTS}" --force
 
-echo "[2/3] Installing crownops.deploy_base from ${BASE_COLLECTION_SOURCE}"
+echo "[2/4] Installing crownops.deploy_base from ${BASE_COLLECTION_SOURCE}"
 retry ansible-galaxy collection install -p "${COLLECTIONS_PATH}" "${BASE_COLLECTION_SOURCE}" --force
 
-echo "[3/3] Installed collections into ${COLLECTIONS_PATH}"
+echo "[3/4] Installing crownops.deploy_services from ${SERVICES_COLLECTION_SOURCE}"
+retry ansible-galaxy collection install -p "${COLLECTIONS_PATH}" "${SERVICES_COLLECTION_SOURCE}" --force
+
+echo "[4/4] Installed collections into ${COLLECTIONS_PATH}"
 
 echo "Collections ready."

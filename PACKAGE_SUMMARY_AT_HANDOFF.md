@@ -7,9 +7,8 @@ A structured Ansible deployment scaffold for a CrownOps remote environment that 
 ## Architectural baseline locked into this package
 
 - generic fresh-host bootstrap consumed from `crownops.deploy_base`
-- Docker + Compose plugin
+- reusable service stacks and backup automation consumed from `crownops.deploy_services`
 - feature-oriented application deployment via `playbooks/features/`
-- Traefik for HTTP ingress when a feature requires it
 - HTTPS required for Obsidian LiveSync mobile compatibility
 - Tailscale access support
 - CouchDB backend for human Obsidian vaults

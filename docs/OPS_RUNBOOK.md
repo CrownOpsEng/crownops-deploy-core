@@ -5,6 +5,9 @@
 Preferred wrapper:
 `./scripts/deploy.sh`
 
+Collection install only:
+`./scripts/install-collections.sh`
+
 Bootstrap only:
 `ansible-playbook playbooks/bootstrap.yml`
 

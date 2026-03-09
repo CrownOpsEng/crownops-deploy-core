@@ -4,8 +4,15 @@ Modular Ansible deployment repo for CrownOps remote environments.
 
 This repo is the environment-facing deployment layer:
 - consume the shared `crownops.deploy_base` collection for fresh-host bootstrap
-- keep inventory, deployment flow, and feature wiring separate from the reusable baseline
+- consume the shared `crownops.deploy_services` collection for reusable service stacks and host backup automation
+- keep inventory, deployment flow, and feature wiring separate from the reusable collections
 - let features such as Obsidian be enabled, disabled, or replaced without rewriting the base deployment path
+
+This repo should stay thin:
+- local inventory and examples
+- wrapper scripts and operator docs
+- site playbooks
+- only truly site-local roles such as layout and preflight
 
 Read first:
 - `docs/QUICKSTART.md`

@@ -3,7 +3,5 @@
   hosts: core_hosts
   become: true
   roles:
-    - role: restic_client
-      tags: [backup, restic]
-    - role: systemd_timers
-      tags: [backup, timers]
+    - role: crownops.deploy_services.restic_host_backups
+      tags: [backup, restic, timers]

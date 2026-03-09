@@ -23,7 +23,5 @@
         bootstrap_tailscale_hostname: "{{ tailscale_hostname }}"
         bootstrap_tailscale_tags: "{{ tailscale_tags }}"
       tags: [bootstrap, base, hardening, docker, tailscale, users]
-    - role: vault_roots
-      tags: [bootstrap, layout]
-    - role: agent_vaults
+    - role: core_layout
       tags: [bootstrap, layout, agents]

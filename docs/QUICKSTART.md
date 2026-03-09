@@ -9,12 +9,14 @@ Use the split as:
 ```text
 VPS/
   crownops-deploy-base/
+  crownops-deploy-services/
   crownops-deploy-core/
   crownops-deploy-edge/
 ```
 
 - `crownops-deploy-base` is the reusable collection repo
-- `crownops-deploy-core` is the deployment repo with playbooks, features, and operator docs
+- `crownops-deploy-services` is the reusable services collection repo
+- `crownops-deploy-core` is the site deployment repo with inventory, wrappers, and operator docs
 - `crownops-deploy-edge` is a separate deployment repo for edge services, not part of the core inventory path
 
 ## One-command path

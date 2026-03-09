@@ -3,12 +3,6 @@
   hosts: core_hosts
   become: true
   roles:
-    - role: traefik_core
+    - role: crownops.deploy_services.obsidian_livesync
       when: feature_obsidian_enabled | bool
-      tags: [feature, obsidian, traefik, proxy]
-    - role: couchdb_livesync
-      when: feature_obsidian_enabled | bool
-      tags: [feature, obsidian, couchdb, livesync]
-    - role: bootstrap_outputs
-      when: feature_obsidian_enabled | bool
-      tags: [feature, obsidian, outputs, handoff]
+      tags: [feature, obsidian, services]

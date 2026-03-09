@@ -1,4 +1,18 @@
 ---
+- name: Create main vault directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ops_user }}"
+    group: "{{ ops_group }}"
+    mode: '0750'
+  loop:
+    - "{{ vault_root }}"
+    - "{{ vault_root }}/humans"
+    - "{{ vault_root }}/agents"
+    - "{{ exports_root }}"
+    - "{{ exports_root }}/shared"
+
 - name: Create agent vault directories
   ansible.builtin.file:
     path: "{{ vault_root }}/agents/{{ item }}"
