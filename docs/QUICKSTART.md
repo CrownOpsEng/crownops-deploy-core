@@ -15,13 +15,14 @@ VPS/
 
 - `crownops-deploy-base` is the reusable collection repo
 - `crownops-deploy-core` is the deployment repo with playbooks, features, and operator docs
-- `crownops-deploy-edge` is where environment-specific inventory and secret overlays can live if you want them isolated from the shared deploy repos
+- `crownops-deploy-edge` is a separate deployment repo for edge services, not part of the core inventory path
 
 ## One-command path
 
 The preferred operator entrypoint is:
 
 ```bash
+./scripts/init-local-config.sh
 ./scripts/deploy.sh
 ```
 
@@ -42,10 +43,17 @@ By default it prompts before each phase. Use `--yes` for unattended execution.
 
 ## Minimum repo setup
 
-Fill these before the first real run:
+Tracked templates:
+- `inventories/prod/hosts.yml.example`
+- `inventories/prod/group_vars/all.yml.example`
+- `inventories/prod/group_vars/core_hosts.yml.example`
+- `inventories/prod/group_vars/vault.yml.example`
+
+Local working files created by `./scripts/init-local-config.sh`:
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
 - `inventories/prod/group_vars/core_hosts.yml`
+- `inventories/prod/group_vars/vault.yml`
 
 At minimum set:
 - `ansible_host`
@@ -60,13 +68,14 @@ At minimum set:
 
 ## Secrets
 
-Put secret values in Ansible Vault before the first real deployment.
+Put secret values in `inventories/prod/group_vars/vault.yml`, then encrypt that file with Ansible Vault before the first real deployment.
 
 ## Manual phase commands
 
 If you need explicit control instead of the wrapper:
 
 ```bash
+./scripts/init-local-config.sh
 ./scripts/install-collections.sh
 ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml

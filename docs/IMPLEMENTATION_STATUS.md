@@ -30,6 +30,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 - Wrapper scripts created:
   - `scripts/install-collections.sh`
   - `scripts/deploy.sh`
+  - `scripts/init-local-config.sh`
 
 ## Not done in this package
 

@@ -1,0 +1,19 @@
+---
+# Copy this file to inventories/prod/group_vars/vault.yml and keep the real file ignored.
+# This repo is public, so do not commit real secrets here.
+#
+# Recommended workflow:
+# 1. copy this example to vault.yml
+# 2. put secret values in vault.yml
+# 3. encrypt it locally with: ansible-vault encrypt inventories/prod/group_vars/vault.yml
+# 4. keep the resulting vault.yml untracked
+#
+# Optional split:
+# - keep non-secret settings in all.yml
+# - keep only secret values here and include them with inventory loading
+
+# Example secret overrides:
+# couchdb_admin_password: "REPLACE_ME"
+# restic_password_primary: "REPLACE_ME"
+# restic_password_secondary: "REPLACE_ME"
+# tailscale_auth_key: "REPLACE_ME"

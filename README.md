@@ -20,6 +20,7 @@ Read first:
 Run preflight before any bootstrap or deploy action:
 
 ```bash
+./scripts/init-local-config.sh
 ./scripts/install-collections.sh
 ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ```
@@ -28,6 +29,11 @@ Behavior:
 - aggregates all validation findings first
 - writes a local report under `reports/`
 - fails only after the full validation pass completes
+
+Public repo hygiene:
+- tracked files end in `.example`
+- real local inventory and vars stay untracked
+- `scripts/init-local-config.sh` creates the local working files from examples
 
 Use this before:
 - `playbooks/bootstrap.yml`

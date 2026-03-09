@@ -2,10 +2,14 @@
 
 ## 1. Fill variables and secrets
 
-Update:
+First run:
+- `./scripts/init-local-config.sh`
+
+Then update:
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
 - `inventories/prod/group_vars/core_hosts.yml`
+- `inventories/prod/group_vars/vault.yml`
 
 Important:
 - set `bootstrap_ansible_user` to the existing first-login account on the host, usually `root`

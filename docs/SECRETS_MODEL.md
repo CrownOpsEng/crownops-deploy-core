@@ -3,6 +3,11 @@
 ## Recommended baseline
 Use Ansible Vault as the deployment source of truth.
 
+For this public repo:
+- track only `inventories/prod/group_vars/vault.yml.example`
+- keep the real `inventories/prod/group_vars/vault.yml` ignored
+- encrypt the real `vault.yml` locally before deployment
+
 ## Bitwarden role for now
 Use your existing Bitwarden cloud vault as operator reference storage and optional input helper, not as the sole machine secret backend.
 

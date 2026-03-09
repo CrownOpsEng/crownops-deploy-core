@@ -1,19 +1,13 @@
 ---
 base_packages:
   - curl
-  - wget
   - git
-  - rsync
-  - jq
-  - unzip
+  - ufw
+  - fail2ban
+  - unattended-upgrades
   - ca-certificates
   - gnupg
   - lsb-release
-  - python3-pip
-  - ufw
-  - fail2ban
-  - acl
-  - moreutils
 
 docker_packages:
   - docker-ce

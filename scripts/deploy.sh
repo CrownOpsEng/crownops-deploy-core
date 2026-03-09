@@ -28,6 +28,33 @@ Options:
 USAGE
 }
 
+ensure_local_config() {
+  local missing=0
+  local required_files=(
+    "inventories/prod/hosts.yml"
+    "inventories/prod/group_vars/all.yml"
+    "inventories/prod/group_vars/core_hosts.yml"
+    "inventories/prod/group_vars/vault.yml"
+  )
+
+  for file in "${required_files[@]}"; do
+    if [[ ! -f "${file}" ]]; then
+      missing=1
+      break
+    fi
+  done
+
+  if [[ "${missing}" -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Local deployment config is missing."
+  echo "Bootstrapping local working files from tracked .example files."
+  ./scripts/init-local-config.sh
+  echo "Edit the generated local files, encrypt inventories/prod/group_vars/vault.yml, then rerun deploy."
+  exit 1
+}
+
 prompt_yes_no() {
   local prompt="$1"
   local default="$2"
@@ -95,6 +122,7 @@ if [[ "$ASSUME_YES" -eq 0 ]]; then
   prompt_yes_no "Run backup setup?" y && RUN_BACKUP=1 || RUN_BACKUP=0
 fi
 
+ensure_local_config
 [[ -f "$INVENTORY" ]] || { echo "ERROR: inventory not found: $INVENTORY" >&2; exit 1; }
 
 VAULT_ARGS=()

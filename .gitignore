@@ -5,3 +5,7 @@ dist/
 .vault_pass*
 vault-pass*
 *.vault-password*
+inventories/prod/hosts.yml
+inventories/prod/group_vars/all.yml
+inventories/prod/group_vars/core_hosts.yml
+inventories/prod/group_vars/vault.yml
