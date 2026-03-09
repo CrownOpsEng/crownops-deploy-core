@@ -16,6 +16,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check out private base collection
+        if: ${{ secrets.CROWNOPS_ACTIONS_REPO_READ_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: CrownOpsEng/crownops-deploy-base
+          path: .ci-deps/crownops-deploy-base
+          token: ${{ secrets.CROWNOPS_ACTIONS_REPO_READ_TOKEN }}
+
+      - name: Resolve collection sources
+        run: |
+          if [[ -d "${GITHUB_WORKSPACE}/.ci-deps/crownops-deploy-base" ]]; then
+            echo "CROWNOPS_BASE_COLLECTION_SOURCE=${GITHUB_WORKSPACE}/.ci-deps/crownops-deploy-base" >> "${GITHUB_ENV}"
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

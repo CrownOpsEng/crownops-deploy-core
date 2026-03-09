@@ -19,6 +19,10 @@ VPS/
 - `crownops-deploy-core` is the site deployment repo with inventory, wrappers, and operator docs
 - `crownops-deploy-edge` is a separate deployment repo for edge services, not part of the core inventory path
 
+## CI note
+
+If `crownops-deploy-base` is private, set a GitHub Actions secret named `CROWNOPS_ACTIONS_REPO_READ_TOKEN` on `crownops-deploy-core` with read access to that repo. CI will check out the private base collection locally and install from that path.
+
 ## One-command path
 
 The preferred operator entrypoint is:

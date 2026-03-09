@@ -17,8 +17,9 @@ retry() {
   for attempt in 1 2 3; do
     if "$@"; then
       return 0
+    else
+      rc=$?
     fi
-    rc=$?
     echo "attempt ${attempt} failed with rc=${rc}: $*" >&2
     if [ "$attempt" -lt 3 ]; then
       sleep 15

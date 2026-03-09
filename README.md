@@ -46,6 +46,7 @@ Public repo hygiene:
 Quality controls:
 - GitHub Actions CI scaffolds example local config, installs collections from GitHub, and syntax-checks the site playbooks
 - staged lockdown uses explicit enable and confirm gates plus break-glass support, so a casual deploy run does not remove public SSH
+- if `crownops-deploy-base` remains private, CI needs a repo or org secret named `CROWNOPS_ACTIONS_REPO_READ_TOKEN` with read access to that repo
 
 Use this before:
 - `playbooks/bootstrap.yml`
