@@ -31,8 +31,9 @@ cat <<'EOF'
 
 Local config scaffolded from examples.
 Next steps:
-1. Fill inventories/prod/hosts.yml with real hosts and SSH users.
-2. Fill inventories/prod/group_vars/all.yml with real non-secret settings.
-3. Put secret values in inventories/prod/group_vars/vault.yml.
-4. Encrypt inventories/prod/group_vars/vault.yml with ansible-vault.
+1. For guided setup, prefer ./scripts/configure.sh.
+2. Fill inventories/prod/hosts.yml with real hosts and SSH users.
+3. Fill inventories/prod/group_vars/all.yml with real non-secret settings.
+4. Put secret values in inventories/prod/group_vars/vault.yml.
+5. Encrypt inventories/prod/group_vars/vault.yml with ansible-vault.
 EOF

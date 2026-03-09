@@ -24,12 +24,27 @@ VPS/
 The preferred operator entrypoint is:
 
 ```bash
-./scripts/init-local-config.sh
+./scripts/configure.sh
 ./scripts/deploy.sh
 ```
 
+For local development in this workspace, keep the shared wizard repo as a sibling checkout:
+
+```text
+VPS/
+  ansible-config-wizard/
+  crownops-deploy-core/
+```
+
+`./scripts/configure.sh` will use the sibling repo automatically when present. In other environments it can also run an installed wizard binary or a path supplied through `ANSIBLE_CONFIG_WIZARD_PROJECT`.
+
 It will:
 
+- collect or generate configuration interactively
+- write inventory, non-secret settings, and local secret material
+- optionally write a sensitive details file
+- optionally write a sanitized audit log
+- optionally encrypt `inventories/prod/group_vars/vault.yml`
 - install required collections from GitHub
 - run preflight
 - bootstrap a brand new host when needed
@@ -57,7 +72,7 @@ That file should remain the main place where you enable features and define non-
 - host bootstrap settings
 - synced Obsidian account definitions
 - local markdown workspace names
-- backup retention, backup paths, and lockdown behavior
+- backup targets, logical jobs, feature contributions, and lockdown behavior
 
 Secrets belong in:
 
@@ -70,12 +85,16 @@ Tracked templates:
 - `inventories/prod/group_vars/core_hosts.yml.example`
 - `inventories/prod/group_vars/vault.yml.example`
 
-Local working files created by `./scripts/init-local-config.sh`:
+Local working files created by `./scripts/configure.sh`:
 
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
 - `inventories/prod/group_vars/core_hosts.yml`
 - `inventories/prod/group_vars/vault.yml`
+
+Fallback:
+
+- `./scripts/init-local-config.sh` still exists if you only want a raw scaffold from `.example` files
 
 At minimum set:
 
@@ -87,14 +106,14 @@ At minimum set:
 - DNS and ACME values if HTTPS-backed features are enabled
 - synced account structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
 - local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
-- backup target credentials
+- backup targets, backup jobs, and contribution wiring
 - Tailscale hostname/tags in `all.yml` and optional auth key in `vault.yml`
 
 Notes:
 
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
 - if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works
-- backup transport supports SSH keys by setting the `restic_*_ssh_private_key` and `restic_*_ssh_known_hosts` variables
+- SFTP backup transport supports SSH keys on a per-target basis by setting `ssh_private_key` and `ssh_known_hosts` under each `restic_targets` entry
 - staged SSH lockdown is two-phase: `--enable-lockdown` runs the phase, `--confirm-lockdown` is required before public SSH can actually be removed
 - break-glass file `lockdown_break_glass_file` short-circuits restrictive changes if recovery is needed
 
@@ -112,7 +131,7 @@ Recommended split:
 If you need explicit control instead of the wrapper:
 
 ```bash
-./scripts/init-local-config.sh
+./scripts/configure.sh
 ./scripts/install-collections.sh
 ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml

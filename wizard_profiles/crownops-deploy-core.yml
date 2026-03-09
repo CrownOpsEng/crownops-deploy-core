@@ -1,0 +1,289 @@
+id: crownops-deploy-core
+name: CrownOps Deploy Core Configuration Wizard
+builder: wizard_support.builders:build_crownops_deploy_core
+defaults:
+  wizard_mode: quick
+  host_name: core-01
+  bootstrap_ansible_user: root
+  ansible_user: deploy
+  timezone: America/Denver
+  bootstrap_target_ubuntu_release: jammy
+  ops_user: deploy
+  ops_group: deploy
+  ssh_pubkeys: []
+  feature_obsidian_enabled: true
+  obsidian_service_subdomain: notes
+  acme_dns_provider: cloudflare
+  couchdb_admin_user: admin
+  local_markdown_workspaces:
+    - shared-docs
+    - operations
+    - scratch
+  restic_enabled: true
+  tailscale_auth_key: ""
+  tailscale_tags: []
+  ufw_allowed_tcp_public:
+    - 22
+    - 443
+  ufw_allowed_udp_public: []
+  traefik_dir: /opt/traefik
+  traefik_network_name: proxy
+  internal_network_name: internal
+  traefik_certresolver_name: dnsresolver
+  traefik_acme_storage: /opt/traefik/acme/acme.json
+  couchdb_dir: /opt/couchdb
+  couchdb_container_name: couchdb
+  couchdb_bind_host: 127.0.0.1
+  couchdb_port: 5984
+  vault_root: /srv/crownops/vaults
+  exports_root: /srv/crownops/exports
+  lockdown_enabled: false
+  lockdown_confirmed: false
+  lockdown_verify_tailscale: true
+  lockdown_mode: tailscale_interface
+  lockdown_allowed_cidrs: []
+  lockdown_break_glass_file: /etc/crownops/allow_public_ssh
+  lockdown_tailscale_interface: tailscale0
+  lockdown_ssh_port: 22
+  lockdown_disable_public_ssh: true
+  lockdown_control_host_probe_enabled: false
+  lockdown_control_host_probe_host: ""
+  lockdown_control_host_probe_timeout: 8
+sections:
+  - id: mode
+    title: Wizard Mode
+    description: Choose the fast path or expose more settings.
+    fields:
+      - id: wizard_mode
+        label: Setup mode
+        type: select
+        choices: [quick, customize]
+        default: quick
+  - id: host
+    title: Host Basics
+    description: Minimum host and SSH details.
+    fields:
+      - id: host_name
+        label: Inventory host name
+        required: true
+      - id: ansible_host
+        label: Public or reachable host address
+        required: true
+      - id: bootstrap_ansible_user
+        label: Bootstrap SSH user
+        default: root
+        required: true
+      - id: ansible_user
+        label: Steady-state Ansible SSH user
+        default: deploy
+        required: true
+      - id: ssh_pubkeys
+        label: Authorized SSH public keys (comma-separated)
+        type: list
+        required: true
+  - id: general
+    title: General Deployment Settings
+    fields:
+      - id: base_domain
+        label: Base domain
+        required: true
+      - id: ops_domain
+        label: Ops domain
+        default_template: "ops.{{ base_domain }}"
+        required: true
+      - id: timezone
+        label: Timezone
+        default: America/Denver
+        required: true
+      - id: bootstrap_target_ubuntu_release
+        label: Target Ubuntu release
+        type: select
+        choices: [jammy, noble]
+        default: jammy
+      - id: ops_user
+        label: Ops user
+        default: deploy
+      - id: ops_group
+        label: Ops group
+        default: deploy
+  - id: features
+    title: Feature Selection
+    fields:
+      - id: feature_obsidian_enabled
+        label: Enable Obsidian LiveSync stack
+        type: confirm
+        default: true
+      - id: restic_enabled
+        label: Enable host backups
+        type: confirm
+        default: true
+  - id: obsidian
+    title: Obsidian Feature Settings
+    when: "feature_obsidian_enabled"
+    fields:
+      - id: obsidian_service_subdomain
+        label: Obsidian service subdomain
+        default: notes
+      - id: traefik_acme_email
+        label: ACME email
+        required: true
+      - id: acme_dns_provider
+        label: ACME DNS provider
+        default: cloudflare
+      - id: acme_env
+        label: ACME provider environment values
+        type: key_value
+        secret: true
+        required: true
+      - id: couchdb_admin_user
+        label: CouchDB admin user
+        default: admin
+      - id: vault_root
+        label: Vault root path
+        default: /srv/crownops/vaults
+      - id: exports_root
+        label: Export root path
+        default: /srv/crownops/exports
+      - id: local_markdown_workspaces
+        label: Local markdown workspaces (comma-separated)
+        type: list
+        default:
+          - shared-docs
+          - operations
+          - scratch
+      - id: vault_couchdb_admin_password
+        label: CouchDB admin password
+        secret: true
+        source:
+          kind: generate
+          generator: password
+          params:
+            length: 32
+  - id: obsidian_vault_accounts
+    title: Synced Vault Accounts
+    description: One generated CouchDB password per account.
+    kind: repeatable
+    when: "feature_obsidian_enabled"
+    collection_key: obsidian_vault_accounts
+    item_label: vault account
+    default_count: 1
+    min_items: 1
+    fields:
+      - id: name
+        label: Account name
+        required: true
+      - id: db_name
+        label: CouchDB database name override
+      - id: user
+        label: CouchDB username override
+      - id: password
+        label: CouchDB account password
+        secret: true
+        source:
+          kind: generate
+          generator: password
+          params:
+            length: 32
+  - id: restic_targets
+    title: Restic Backup Targets
+    description: One target per repository destination.
+    kind: repeatable
+    when: "restic_enabled"
+    collection_key: restic_targets_input
+    item_label: backup target
+    default_count: 1
+    min_items: 1
+    fields:
+      - id: name
+        label: Target name
+        required: true
+      - id: repository
+        label: Restic repository URL
+        required: true
+      - id: password
+        label: Restic repository password
+        secret: true
+        source:
+          kind: generate
+          generator: password
+          params:
+            length: 32
+      - id: generate_ssh_key
+        label: Generate dedicated backup SSH key pair
+        type: confirm
+        default: true
+      - id: ssh_public_key
+        label: Existing backup SSH public key
+        when: "not generate_ssh_key"
+      - id: ssh_private_key
+        label: Existing backup SSH private key
+        when: "not generate_ssh_key"
+      - id: ssh_known_hosts
+        label: SSH known_hosts pin line
+      - id: environment
+        label: Extra environment variables for this target
+        type: key_value
+  - id: tailscale
+    title: Tailscale Settings
+    fields:
+      - id: tailscale_hostname
+        label: Tailscale hostname
+        default_template: "{{ host_name }}"
+      - id: tailscale_auth_key
+        label: Tailscale auth key (blank for manual join)
+        type: password
+        secret: true
+        source:
+          kind: optional_prompt
+      - id: tailscale_tags
+        label: Tailscale tags (comma-separated)
+        type: list
+        default: []
+  - id: advanced
+    title: Advanced Settings
+    when: "wizard_mode == 'customize'"
+    fields:
+      - id: ufw_allowed_tcp_public
+        label: Public TCP ports (comma-separated)
+        type: list
+        default:
+          - 22
+          - 443
+      - id: ufw_allowed_udp_public
+        label: Public UDP ports (comma-separated)
+        type: list
+        default: []
+      - id: lockdown_enabled
+        label: Enable staged lockdown by default
+        type: confirm
+        default: false
+      - id: lockdown_confirmed
+        label: Confirm restrictive SSH changes by default
+        type: confirm
+        default: false
+      - id: lockdown_allowed_cidrs
+        label: Lockdown allowlist CIDRs (comma-separated)
+        type: list
+        default: []
+outputs:
+  - id: hosts
+    path: inventories/prod/hosts.yml
+    template: wizard_templates/crownops-deploy-core/hosts.yml.j2
+    mode: "0644"
+  - id: all
+    path: inventories/prod/group_vars/all.yml
+    template: wizard_templates/crownops-deploy-core/all.yml.j2
+    mode: "0644"
+  - id: core_hosts
+    path: inventories/prod/group_vars/core_hosts.yml
+    template: wizard_templates/crownops-deploy-core/core_hosts.yml.j2
+    mode: "0644"
+  - id: vault
+    path: inventories/prod/group_vars/vault.yml
+    template: wizard_templates/crownops-deploy-core/vault.yml.j2
+    mode: "0600"
+  - id: details
+    path: reports/config-details-{{ timestamp }}.md
+    template: wizard_templates/crownops-deploy-core/details.md.j2
+    mode: "0600"
+    when: "write_details"

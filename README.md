@@ -6,7 +6,7 @@ This repo is the environment-facing deployment layer:
 
 - consume the shared `crownops.deploy_base` collection for fresh-host bootstrap
 - consume the shared `crownops.deploy_base` collection for staged post-join SSH lockdown
-- consume the shared `crownops.deploy_services` collection for reusable service stacks and host backup automation
+- consume the shared `crownops.deploy_services` collection for reusable service stacks and composable host backup automation
 - keep inventory, deployment flow, and feature wiring separate from the reusable collections
 - let features such as Obsidian be enabled, disabled, or replaced without rewriting the base deployment path
 
@@ -21,10 +21,12 @@ Configuration model:
 
 - `inventories/prod/group_vars/all.yml` is the primary non-secret configuration surface
 - `inventories/prod/group_vars/vault.yml` holds secret values only
+- backup policy is expressed as `restic_targets`, `restic_backup_jobs`, and `restic_backup_contributions`
 
 Read first:
 
 - `docs/QUICKSTART.md`
+- `docs/CONFIG_WIZARD_SPEC.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 - `docs/DEPLOYMENT_SEQUENCE.md`
 - `docs/SECRETS_MODEL.md`
@@ -36,7 +38,7 @@ Read first:
 Run preflight before any bootstrap or deploy action:
 
 ```bash
-./scripts/init-local-config.sh
+./scripts/configure.sh
 ./scripts/install-collections.sh
 ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ```
@@ -51,7 +53,9 @@ Public repo hygiene:
 
 - tracked files end in `.example`
 - real local inventory and vars stay untracked
-- `scripts/init-local-config.sh` creates the local working files from examples
+- `scripts/configure.sh` is the preferred local config entrypoint
+- the shared wizard implementation lives outside this repo; this repo only carries the profile, templates, and builder hook
+- `scripts/init-local-config.sh` remains available as a simple scaffold-from-examples fallback
 
 Quality controls:
 

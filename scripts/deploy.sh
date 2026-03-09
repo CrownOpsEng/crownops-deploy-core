@@ -54,9 +54,13 @@ ensure_local_config() {
   fi
 
   echo "Local deployment config is missing."
-  echo "Bootstrapping local working files from tracked .example files."
-  ./scripts/init-local-config.sh
-  echo "Edit the generated local files, encrypt inventories/prod/group_vars/vault.yml, then rerun deploy."
+  if [[ -x "./scripts/configure.sh" ]]; then
+    echo "Run ./scripts/configure.sh to generate local config and secrets."
+  else
+    echo "Bootstrapping local working files from tracked .example files."
+    ./scripts/init-local-config.sh
+    echo "Edit the generated local files, encrypt inventories/prod/group_vars/vault.yml, then rerun deploy."
+  fi
   exit 1
 }
 

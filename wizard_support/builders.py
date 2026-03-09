@@ -1,0 +1,155 @@
+from __future__ import annotations
+
+import copy
+import re
+from typing import Any
+
+from ansible_config_wizard.generators import fingerprint, generate_value
+
+
+def sanitize_identifier(value: str) -> str:
+    sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
+    return sanitized or "item"
+
+
+def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
+    data = copy.deepcopy(raw)
+    host_name = data["host_name"]
+
+    data["ops_domain"] = data.get("ops_domain") or f"ops.{data['base_domain']}"
+    data["tailscale_hostname"] = data.get("tailscale_hostname") or host_name
+    data["tailscale_auth_key"] = data.get("tailscale_auth_key") or ""
+
+    data["couchdb_admin_password_ref"] = "{{ vault_couchdb_admin_password }}"
+    data["tailscale_auth_key_ref"] = "{{ vault_tailscale_auth_key | default('') }}"
+
+    if data.get("feature_obsidian_enabled", True):
+        accounts = []
+        account_passwords: dict[str, str] = {}
+        for item in data.get("obsidian_vault_accounts", []):
+            key = sanitize_identifier(item["name"])
+            account_passwords[key] = item["password"]
+            accounts.append(
+                {
+                    "name": item["name"],
+                    "secret_key": key,
+                    "db_name": item.get("db_name") or f"vault_{key}",
+                    "user": item.get("user") or f"vault_{key}_user",
+                    "password_reference": f"{{{{ vault_couchdb_account_passwords.{key} }}}}",
+                }
+            )
+        data["couchdb_vaults"] = accounts
+        data["vault_couchdb_account_passwords"] = account_passwords
+    else:
+        data["couchdb_vaults"] = []
+        data["vault_couchdb_account_passwords"] = {}
+        data["vault_couchdb_admin_password"] = ""
+
+    restic_targets = []
+    vault_restic_target_secrets: dict[str, dict[str, Any]] = {}
+    generated_ssh_public_keys: list[dict[str, str]] = []
+    for item in data.get("restic_targets_input", []):
+        key = sanitize_identifier(item["name"])
+        if item.get("generate_ssh_key", False):
+            keypair = generate_value("ed25519_keypair")
+            ssh_private_key = keypair["private_key"]
+            ssh_public_key = keypair["public_key"]
+            generated_ssh_public_keys.append(
+                {
+                    "label": f"restic target {item['name']}",
+                    "public_key": ssh_public_key,
+                    "fingerprint": keypair["fingerprint"],
+                }
+            )
+        else:
+            ssh_private_key = item.get("ssh_private_key", "")
+            ssh_public_key = item.get("ssh_public_key", "")
+            if ssh_public_key:
+                generated_ssh_public_keys.append(
+                    {
+                        "label": f"restic target {item['name']}",
+                        "public_key": ssh_public_key,
+                        "fingerprint": fingerprint(ssh_public_key),
+                    }
+                )
+
+        vault_restic_target_secrets[key] = {
+            "password": item["password"],
+            "ssh_private_key": ssh_private_key or "",
+            "ssh_known_hosts": item.get("ssh_known_hosts", "") or "",
+            "environment": item.get("environment", {}) or {},
+        }
+
+        restic_targets.append(
+            {
+                "name": item["name"],
+                "repository": item["repository"],
+                "password_reference": f"{{{{ vault_restic_target_secrets.{key}.password }}}}",
+                "ssh_private_key_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_private_key | default('') }}}}",
+                "ssh_known_hosts_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_known_hosts | default('') }}}}",
+                "environment_reference": f"{{{{ vault_restic_target_secrets.{key}.environment | default({{}}) }}}}",
+            }
+        )
+
+    data["restic_targets"] = restic_targets
+    data["vault_restic_target_secrets"] = vault_restic_target_secrets
+    data["generated_ssh_public_keys"] = generated_ssh_public_keys
+
+    target_names = [item["name"] for item in restic_targets]
+    if data.get("restic_enabled", True) and target_names:
+        data["restic_backup_jobs"] = [
+            {
+                "name": "host-foundation",
+                "paths": ["/etc/ssh", "/etc/fail2ban", "/etc/ufw"],
+                "target_names": target_names,
+                "tags": ["profile:stateful-app", "class:host"],
+            },
+            {
+                "name": "application-data",
+                "paths": [],
+                "target_names": target_names,
+                "backup_schedule": "*-*-* 03:30:00",
+                "backup_randomized_delay": "20m",
+                "maintenance_schedule": "Sun *-*-* 05:30:00",
+                "maintenance_randomized_delay": "30m",
+                "retention_daily": 14,
+                "retention_weekly": 8,
+                "retention_monthly": 6,
+                "tags": ["profile:stateful-app", "class:data"],
+            },
+        ]
+        data["restic_backup_contributions"] = [
+            {
+                "job": "host-foundation",
+                "paths": ["/opt/traefik"],
+                "tags": ["feature:edge-proxy"],
+            },
+            {
+                "job": "application-data",
+                "paths": ["/opt/couchdb", "/srv/crownops"],
+                "pre_commands": ["docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"],
+                "post_commands": ["docker compose -f /opt/couchdb/docker-compose.yml start couchdb"],
+                "tags": ["feature:obsidian-livesync"],
+            },
+        ]
+    else:
+        data["restic_backup_jobs"] = []
+        data["restic_backup_contributions"] = []
+        data["restic_enabled"] = False
+
+    data["generated_secret_fingerprints"] = []
+    if data.get("vault_couchdb_admin_password"):
+        data["generated_secret_fingerprints"].append(
+            {"label": "CouchDB admin password", "fingerprint": fingerprint(data["vault_couchdb_admin_password"])}
+        )
+    for key, value in data.get("vault_couchdb_account_passwords", {}).items():
+        data["generated_secret_fingerprints"].append(
+            {"label": f"CouchDB account password: {key}", "fingerprint": fingerprint(value)}
+        )
+    for key, value in data.get("vault_restic_target_secrets", {}).items():
+        data["generated_secret_fingerprints"].append(
+            {"label": f"Restic target password: {key}", "fingerprint": fingerprint(value["password"])}
+        )
+
+    data["vault_reference_summary"] = []
+    return data

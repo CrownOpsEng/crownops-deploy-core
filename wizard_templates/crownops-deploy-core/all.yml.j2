@@ -1,0 +1,114 @@
+---
+project_name: crownops-deploy-core
+base_domain: {{ base_domain | yaml_value }}
+ops_domain: {{ ops_domain | yaml_value }}
+
+timezone: {{ timezone | yaml_value }}
+bootstrap_target_ubuntu_release: {{ bootstrap_target_ubuntu_release | yaml_value }}
+
+ops_user: {{ ops_user | yaml_value }}
+ops_group: {{ ops_group | yaml_value }}
+
+ssh_pubkeys:
+{% for key in ssh_pubkeys %}
+  - {{ key | yaml_value }}
+{% endfor %}
+
+ufw_allowed_tcp_public: {{ ufw_allowed_tcp_public | yaml_value }}
+ufw_allowed_udp_public: {{ ufw_allowed_udp_public | yaml_value }}
+
+feature_obsidian_enabled: {{ feature_obsidian_enabled | yaml_value }}
+{% if feature_obsidian_enabled %}
+obsidian_service_subdomain: {{ obsidian_service_subdomain | yaml_value }}
+
+traefik_dir: {{ traefik_dir | yaml_value }}
+traefik_network_name: {{ traefik_network_name | yaml_value }}
+internal_network_name: {{ internal_network_name | yaml_value }}
+traefik_acme_email: {{ traefik_acme_email | yaml_value }}
+traefik_certresolver_name: {{ traefik_certresolver_name | yaml_value }}
+traefik_acme_storage: {{ traefik_acme_storage | yaml_value }}
+acme_dns_provider: {{ acme_dns_provider | yaml_value }}
+acme_env:
+{% for key, value in acme_env.items() %}
+  {{ key }}: {{ value | yaml_value }}
+{% endfor %}
+
+couchdb_dir: {{ couchdb_dir | yaml_value }}
+couchdb_container_name: {{ couchdb_container_name | yaml_value }}
+couchdb_admin_user: {{ couchdb_admin_user | yaml_value }}
+couchdb_admin_password: "{{ couchdb_admin_password_ref }}"
+couchdb_bind_host: {{ couchdb_bind_host | yaml_value }}
+couchdb_port: {{ couchdb_port | yaml_value }}
+couchdb_vaults:
+{% for account in couchdb_vaults %}
+  - name: {{ account.name | yaml_value }}
+    db_name: {{ account.db_name | yaml_value }}
+    user: {{ account.user | yaml_value }}
+    password: "{{ account.password_reference }}"
+{% endfor %}
+{% endif %}
+
+vault_root: {{ vault_root | yaml_value }}
+exports_root: {{ exports_root | yaml_value }}
+local_markdown_workspaces:
+{% for workspace in local_markdown_workspaces %}
+  - {{ workspace | yaml_value }}
+{% endfor %}
+
+restic_enabled: {{ restic_enabled | yaml_value }}
+restic_targets:
+{% for target in restic_targets %}
+  - name: {{ target.name | yaml_value }}
+    repository: {{ target.repository | yaml_value }}
+    password: "{{ target.password_reference }}"
+    ssh_private_key: "{{ target.ssh_private_key_reference }}"
+    ssh_known_hosts: "{{ target.ssh_known_hosts_reference }}"
+    environment: "{{ target.environment_reference }}"
+{% endfor %}
+
+restic_backup_jobs:
+{% for job in restic_backup_jobs %}
+  - name: {{ job.name | yaml_value }}
+    paths: {{ job.paths | yaml_value }}
+    target_names: {{ job.target_names | yaml_value }}
+{% if job.backup_schedule is defined %}
+    backup_schedule: {{ job.backup_schedule | yaml_value }}
+    backup_randomized_delay: {{ job.backup_randomized_delay | yaml_value }}
+    maintenance_schedule: {{ job.maintenance_schedule | yaml_value }}
+    maintenance_randomized_delay: {{ job.maintenance_randomized_delay | yaml_value }}
+    retention_daily: {{ job.retention_daily | yaml_value }}
+    retention_weekly: {{ job.retention_weekly | yaml_value }}
+    retention_monthly: {{ job.retention_monthly | yaml_value }}
+{% endif %}
+    tags: {{ job.tags | yaml_value }}
+{% endfor %}
+
+restic_backup_contributions:
+{% for contribution in restic_backup_contributions %}
+  - job: {{ contribution.job | yaml_value }}
+    paths: {{ contribution.paths | yaml_value }}
+{% if contribution.pre_commands is defined %}
+    pre_commands: {{ contribution.pre_commands | yaml_value }}
+{% endif %}
+{% if contribution.post_commands is defined %}
+    post_commands: {{ contribution.post_commands | yaml_value }}
+{% endif %}
+    tags: {{ contribution.tags | yaml_value }}
+{% endfor %}
+
+tailscale_auth_key: "{{ tailscale_auth_key_ref }}"
+tailscale_hostname: {{ tailscale_hostname | yaml_value }}
+tailscale_tags: {{ tailscale_tags | yaml_value }}
+
+lockdown_enabled: {{ lockdown_enabled | yaml_value }}
+lockdown_confirmed: {{ lockdown_confirmed | yaml_value }}
+lockdown_verify_tailscale: {{ lockdown_verify_tailscale | yaml_value }}
+lockdown_mode: {{ lockdown_mode | yaml_value }}
+lockdown_allowed_cidrs: {{ lockdown_allowed_cidrs | yaml_value }}
+lockdown_break_glass_file: {{ lockdown_break_glass_file | yaml_value }}
+lockdown_tailscale_interface: {{ lockdown_tailscale_interface | yaml_value }}
+lockdown_ssh_port: {{ lockdown_ssh_port | yaml_value }}
+lockdown_disable_public_ssh: {{ lockdown_disable_public_ssh | yaml_value }}
+lockdown_control_host_probe_enabled: {{ lockdown_control_host_probe_enabled | yaml_value }}
+lockdown_control_host_probe_host: {{ lockdown_control_host_probe_host | yaml_value }}
+lockdown_control_host_probe_timeout: {{ lockdown_control_host_probe_timeout | yaml_value }}
