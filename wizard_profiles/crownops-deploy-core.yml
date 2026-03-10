@@ -375,8 +375,9 @@ sections:
         label: Existing backup SSH private key
         when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
       - id: ssh_known_hosts
-        label: SSH known_hosts pin line
-        help: Leave blank to let the wizard try ssh-keyscan now.
+        label: Pinned SSH host keys for the backup destination
+        type: multiline_text
+        help: Optional. This is for the remote SFTP backup destination, not for the core host you are deploying. Leave it blank and the wizard will try ssh-keyscan against the destination host and port you entered. If you want to pin keys manually, paste one known_hosts line per line here.
         when: "target_mode == 'sftp_ssh'"
       - id: environment
         label: Extra environment variables for this target
