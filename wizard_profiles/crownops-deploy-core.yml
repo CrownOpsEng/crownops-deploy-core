@@ -401,8 +401,9 @@ sections:
         label: Existing backup SSH public key
         when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
         required: true
-      - id: ssh_private_key
-        label: Existing backup SSH private key
+      - id: ssh_private_key_file
+        label: Existing backup SSH private key file
+        help: Enter the local path to the existing private key file so the wizard can read it without echoing the key in the terminal.
         when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
         required: true
       - id: ssh_known_hosts

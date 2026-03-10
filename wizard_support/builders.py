@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import re
 import shlex
+from pathlib import Path
 from typing import Any
 
 from ansible_config_wizard.generators import fingerprint, generate_value
@@ -11,6 +12,16 @@ from ansible_config_wizard.generators import fingerprint, generate_value
 def sanitize_identifier(value: str) -> str:
     sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
     return sanitized or "item"
+
+
+def read_local_secret_file(path_value: str, repo_root: str) -> str:
+    candidate = Path(path_value).expanduser()
+    if not candidate.is_absolute():
+        candidate = Path(repo_root) / candidate
+    try:
+        return candidate.read_text(encoding="utf-8").rstrip()
+    except OSError as exc:
+        raise ValueError(f"Unable to read secret file: {candidate}") from exc
 
 
 def build_backup_target_bootstrap_command(
@@ -142,6 +153,8 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             )
         else:
             ssh_private_key = item.get("ssh_private_key", "")
+            if item.get("ssh_private_key_file"):
+                ssh_private_key = read_local_secret_file(item["ssh_private_key_file"], data["repo_root"])
             ssh_public_key = item.get("ssh_public_key", "")
             if ssh_public_key:
                 generated_ssh_public_keys.append(
