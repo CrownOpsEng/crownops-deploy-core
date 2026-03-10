@@ -384,6 +384,59 @@
         | length
       ) > 0
 
+- name: Warn on broad restic backup roots
+  ansible.builtin.set_fact:
+    preflight_warnings: "{{ preflight_warnings + ['restic backup paths include broad service roots (' ~ (preflight_broad_restic_paths | join(', ')) ~ '). Prefer precise durable state only, such as ' ~ (preflight_restic_precise_examples | join(', ')) ~ ', so backups do not capture rebuildable configs, exports, or package bloat.'] }}"
+  vars:
+    preflight_broad_restic_path_candidates: >-
+      {{
+        [
+          couchdb_dir | default(''),
+          traefik_dir | default(''),
+          vault_root | default(''),
+          (vault_root | default('')) ~ '/synced',
+          exports_root | default(''),
+          (exports_root | default('')) ~ '/shared',
+          '/srv/crownops'
+        ]
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    preflight_broad_restic_paths: >-
+      {{
+        (
+          (
+            restic_backup_jobs | default([])
+            | map(attribute='paths')
+            | select('defined')
+            | list
+            | sum(start=[])
+          )
+          + (
+            restic_backup_contributions | default([])
+            | map(attribute='paths')
+            | select('defined')
+            | list
+            | sum(start=[])
+          )
+        )
+        | select('in', preflight_broad_restic_path_candidates)
+        | unique
+        | list
+      }}
+    preflight_restic_precise_examples: >-
+      {{
+        [
+          (couchdb_dir | default('/opt/couchdb')) ~ '/data',
+          traefik_acme_storage | default('/opt/traefik/acme/acme.json'),
+          (vault_root | default('/srv/crownops/vaults')) ~ '/workspaces'
+        ]
+      }}
+  when:
+    - restic_enabled | default(true) | bool
+    - (preflight_broad_restic_paths | length) > 0
+
 - name: Check restic SSH known_hosts requirements
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Each restic target that uses an SSH private key must also define ssh_known_hosts.'] }}"

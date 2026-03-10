@@ -34,6 +34,7 @@ That backup layer is modeled as:
 - jobs: logical host backup policies with schedule and retention
 - contributions: feature-specific paths and consistency hooks merged into named jobs
 - converge-time performance policy: no fact gathering for the dedicated backup play, SSH pipelining enabled in the repo Ansible config, and package cache reuse controlled through `restic_apt_cache_valid_time`
+- restore-first scope policy: back up durable state such as host identity, local markdown workspaces, CouchDB data, and Traefik ACME state, not broad service roots that can be rebuilt from Ansible
 
 `playbooks/lockdown.yml` consumes the reusable `crownops.deploy_base.network_lockdown` role so SSH lockdown policy stays consistent across site repos.
 

@@ -226,8 +226,6 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     target_names = [item["name"] for item in restic_targets]
     if data.get("restic_enabled", True) and target_names:
         host_foundation_paths = ["/etc/ssh", "/etc/fail2ban", "/etc/ufw"]
-        if data.get("feature_obsidian_enabled", False) and data.get("obsidian_access_mode") == "public_https":
-            host_foundation_paths.append("/opt/traefik")
 
         data["restic_backup_jobs"] = [
             {
@@ -238,7 +236,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             },
             {
                 "name": "application-data",
-                "paths": [],
+                "paths": ["{{ vault_root }}/workspaces"],
                 "target_names": target_names,
                 "backup_schedule": "*-*-* 03:30:00",
                 "backup_randomized_delay": "20m",
@@ -255,7 +253,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             restic_backup_contributions.append(
                 {
                     "job": "host-foundation",
-                    "paths": ["/opt/traefik"],
+                    "paths": ["{{ traefik_acme_storage }}"],
                     "tags": ["feature:edge-proxy"],
                 }
             )
@@ -263,7 +261,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             restic_backup_contributions.append(
                 {
                     "job": "application-data",
-                    "paths": ["/opt/couchdb", "/srv/crownops"],
+                    "paths": ["{{ couchdb_dir }}/data"],
                     "pre_commands": ["docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"],
                     "post_commands": ["docker compose -f /opt/couchdb/docker-compose.yml start couchdb"],
                     "tags": ["feature:obsidian-livesync"],

@@ -86,7 +86,9 @@ restic_backup_jobs:
       - profile:stateful-app
       - class:host
   - name: application-data
-    paths: []
+    # Back up only durable application state. Service configs are rebuilt from Ansible.
+    paths:
+      - "{{ vault_root }}/workspaces"
     target_names: [primary, secondary]
     backup_schedule: "*-*-* 03:30:00"
     backup_randomized_delay: 20m
@@ -102,13 +104,12 @@ restic_backup_jobs:
 restic_backup_contributions:
   - job: host-foundation
     paths:
-      - /opt/traefik
+      - "{{ traefik_acme_storage }}"
     tags:
       - feature:edge-proxy
   - job: application-data
     paths:
-      - /opt/couchdb
-      - /srv/crownops
+      - "{{ couchdb_dir }}/data"
     pre_commands:
       - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
     post_commands:

@@ -70,5 +70,41 @@ vault_keys = list(result["vault_restic_target_secrets"].keys())
 if vault_keys != ["h4f", "laptop_backup"]:
     raise SystemExit(f"unexpected vault target secret keys: {vault_keys!r}")
 
+application_job = next(job for job in result["restic_backup_jobs"] if job["name"] == "application-data")
+if application_job["paths"] != ["{{ vault_root }}/workspaces"]:
+    raise SystemExit(f"unexpected application-data paths for non-obsidian deployment: {application_job['paths']!r}")
+
+obsidian_result = build_crownops_deploy_core(
+    {
+        "repo_root": str(repo_root),
+        "host_name": "core-01",
+        "base_domain": "example.com",
+        "ops_domain": "ops.example.com",
+        "ssh_setup_mode": "use_existing_public_keys",
+        "ssh_pubkeys": ["ssh-ed25519 AAAATEST example@test"],
+        "feature_obsidian_enabled": True,
+        "obsidian_access_mode": "public_https",
+        "obsidian_service_subdomain": "notes",
+        "traefik_acme_email": "ops@example.com",
+        "acme_dns_provider": "cloudflare",
+        "acme_env": {"CF_DNS_API_TOKEN": "token"},
+        "restic_enabled": True,
+        "restic_targets_input": [
+            {
+                "name": "Primary",
+                "target_mode": "local_path",
+                "local_path": "/srv/restic/primary",
+                "password": "secret-1",
+            }
+        ],
+    }
+)
+
+contributions = {item["job"]: item["paths"] for item in obsidian_result["restic_backup_contributions"]}
+if contributions.get("host-foundation") != ["{{ traefik_acme_storage }}"]:
+    raise SystemExit(f"unexpected host-foundation contribution paths: {contributions.get('host-foundation')!r}")
+if contributions.get("application-data") != ["{{ couchdb_dir }}/data"]:
+    raise SystemExit(f"unexpected application-data contribution paths: {contributions.get('application-data')!r}")
+
 print("builder restic target name normalization smoke test passed")
 PY
