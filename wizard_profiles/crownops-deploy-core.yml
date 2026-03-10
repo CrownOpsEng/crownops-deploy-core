@@ -70,16 +70,20 @@ sections:
     fields:
       - id: host_name
         label: Inventory host name
+        help: A stable internal label for this machine inside Ansible and the generated records.
         required: true
       - id: ansible_host
         label: Public or reachable host address
+        help: The address Ansible should use right now, before any later network tightening.
         required: true
       - id: bootstrap_ansible_user
         label: Bootstrap SSH user
+        help: The initial account that can reach the host today, often root or ubuntu on a fresh machine.
         default: root
         required: true
       - id: ansible_user
         label: Steady-state Ansible SSH user
+        help: The account Ansible should keep using after bootstrap completes.
         default: deploy
         required: true
       - id: ssh_setup_mode
@@ -130,9 +134,11 @@ sections:
     fields:
       - id: base_domain
         label: Base domain
+        help: The main domain family for this deployment, such as crownopseng.com.
         required: true
       - id: ops_domain
         label: Ops domain
+        help: The operator-facing subdomain space used for service endpoints and infrastructure naming.
         default_template: "ops.{{ base_domain }}"
         required: true
       - id: timezone
@@ -156,6 +162,7 @@ sections:
     fields:
       - id: feature_obsidian_enabled
         label: Enable Obsidian LiveSync stack
+        help: Turn this on when this host should run the CouchDB-backed LiveSync service.
         type: confirm
         default: true
       - id: obsidian_access_mode
@@ -167,6 +174,7 @@ sections:
         when: "feature_obsidian_enabled"
       - id: restic_enabled
         label: Enable host backups
+        help: Recommended for real deployments. This adds scheduled backups and maintenance timers.
         type: confirm
         default: true
   - id: tailscale
@@ -179,12 +187,14 @@ sections:
         default_template: "{{ host_name }}"
       - id: tailscale_auth_key
         label: Tailscale auth key (blank for manual join)
+        help: Leave blank if you want to join the tailnet manually after bootstrap.
         type: password
         secret: true
         source:
           kind: optional_prompt
       - id: tailscale_tags
         label: Tailscale tags (comma-separated)
+        help: Optional tailnet tags for policy and grouping.
         type: list
         default: []
   - id: obsidian
@@ -194,6 +204,7 @@ sections:
     fields:
       - id: obsidian_service_subdomain
         label: Obsidian service subdomain
+        help: The public hostname label placed under your ops domain for the LiveSync endpoint.
         default: notes
         when: "obsidian_access_mode == 'public_https'"
       - id: traefik_acme_email
@@ -235,6 +246,7 @@ sections:
         help: Optional extra browser origins beyond the Obsidian app schemes and the base URL. Usually leave this empty.
       - id: couchdb_admin_user
         label: CouchDB admin user
+        help: Internal admin account for service bootstrap and maintenance.
         default: admin
       - id: couchdb_bind_host
         label: CouchDB bind host
@@ -245,9 +257,11 @@ sections:
         default: 5984
       - id: vault_root
         label: Vault root path
+        help: Server-side directory where synchronized vault exports and supporting data live.
         default: /srv/crownops/vaults
       - id: exports_root
         label: Export root path
+        help: Server-side directory for export-style output separate from the primary vault storage path.
         default: /srv/crownops/exports
       - id: local_markdown_workspaces
         label: Local markdown workspaces (comma-separated)
@@ -304,6 +318,7 @@ sections:
     fields:
       - id: name
         label: Target name
+        help: Friendly operator label for this destination, such as laptop or secondary-vps.
         required: true
       - id: target_mode
         label: Target type
@@ -321,6 +336,7 @@ sections:
         default: 22
       - id: sftp_user
         label: SFTP user
+        help: The remote account that will own or write into the restic repository path.
         when: "target_mode == 'sftp_ssh'"
         required: true
       - id: sftp_path
@@ -347,6 +363,7 @@ sections:
             length: 32
       - id: generate_ssh_key
         label: Generate dedicated backup SSH key pair
+        help: Recommended. This keeps backup transport separate from your day-to-day SSH identity.
         type: confirm
         default: true
         when: "target_mode == 'sftp_ssh'"
