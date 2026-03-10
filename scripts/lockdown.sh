@@ -60,6 +60,40 @@ expand_path() {
   printf '%s\n' "$value"
 }
 
+prompt_for_vault_access() {
+  echo "Encrypted vault detected at ${VAULT_FILE}."
+  if [[ -n "$CONFIGURED_VAULT_PASS_FILE" ]]; then
+    echo "Configured default vault password file: ${CONFIGURED_VAULT_PASS_FILE}"
+  fi
+  PS3="Vault access method: "
+  local options=(
+    "Prompt for vault password interactively"
+    "Use vault password file"
+  )
+  select choice in "${options[@]}"; do
+    case "${choice:-}" in
+      "Prompt for vault password interactively")
+        ASK_VAULT_PASS=1
+        return 0
+        ;;
+      "Use vault password file")
+        if [[ -n "$CONFIGURED_VAULT_PASS_FILE" ]]; then
+          read -r -p "Vault password file [${CONFIGURED_VAULT_PASS_FILE}]: " vault_answer
+          VAULT_PASS_FILE="${vault_answer:-$CONFIGURED_VAULT_PASS_FILE}"
+        else
+          read -r -p "Vault password file: " vault_answer
+          VAULT_PASS_FILE="$vault_answer"
+        fi
+        VAULT_PASS_FILE="$(expand_path "$VAULT_PASS_FILE")"
+        return 0
+        ;;
+      *)
+        echo "Select one of the listed options."
+        ;;
+    esac
+  done
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -i)
@@ -101,6 +135,8 @@ CONFIGURED_VAULT_PASS_FILE="$(configured_vault_password_file)"
 CONFIGURED_VAULT_PASS_FILE="$(expand_path "$CONFIGURED_VAULT_PASS_FILE")"
 if [[ -n "$VAULT_PASS_FILE" ]]; then
   VAULT_PASS_FILE="$(expand_path "$VAULT_PASS_FILE")"
+elif [[ -f "$VAULT_FILE" ]] && is_encrypted_vault_file "$VAULT_FILE" && [[ -t 0 ]]; then
+  prompt_for_vault_access
 fi
 
 if [[ -n "$VAULT_PASS_FILE" && "$ASK_VAULT_PASS" -eq 1 ]]; then
