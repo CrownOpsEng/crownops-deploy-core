@@ -60,6 +60,7 @@ local_markdown_workspaces:
   - scratch
 
 restic_enabled: true
+restic_apt_cache_valid_time: 86400
 restic_targets:
   - name: primary
     repository: sftp:backup@primary.example.invalid:/srv/restic/deploy-core

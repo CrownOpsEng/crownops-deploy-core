@@ -20,6 +20,9 @@ Deploy enabled features:
 Deploy backup jobs:
 `ansible-playbook playbooks/backup.yml`
 
+Test one backup execution without rerunning the full converge:
+`sudo systemctl start crownops-restic-backup-<job>-<target>.service`
+
 Lock down public SSH after Tailscale validation:
 `./scripts/ssh-lockdown.sh --confirm`
 
@@ -39,6 +42,9 @@ CouchDB:
 
 Backup timer state:
 `systemctl list-timers 'crownops-restic*'`
+
+Backup service logs:
+`sudo journalctl -u crownops-restic-backup-<job>-<target>.service -n 200 --no-pager`
 
 UFW posture:
 `sudo ufw status numbered`

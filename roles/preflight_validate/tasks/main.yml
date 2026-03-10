@@ -267,6 +267,14 @@
     - restic_enabled | default(true) | bool
     - restic_backup_jobs is not defined or (restic_backup_jobs | length) == 0
 
+- name: Check restic apt cache reuse window format
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_apt_cache_valid_time must be an integer greater than or equal to 0 so backup package installation uses a valid apt cache policy.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_apt_cache_valid_time is defined
+    - not ((restic_apt_cache_valid_time | string) is match('^[0-9]+$'))
+
 - name: Check duplicate restic target names
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['restic_targets contains duplicate target names.'] }}"

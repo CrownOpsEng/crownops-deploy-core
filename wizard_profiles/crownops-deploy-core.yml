@@ -25,6 +25,7 @@ defaults:
     - operations
     - scratch
   restic_enabled: true
+  restic_apt_cache_valid_time: 86400
   tailscale_auth_key: ""
   tailscale_tags: []
   ufw_allowed_tcp_public:
@@ -316,6 +317,11 @@ phases:
             help: Recommended for real deployments. This adds scheduled backups and maintenance timers.
             type: confirm
             default: true
+          - id: restic_apt_cache_valid_time
+            label: APT cache reuse window (seconds)
+            help: Reuse the package index for backup converges instead of refreshing it on every run. 86400 keeps package metadata fresh daily without paying the full update cost each time.
+            default: 86400
+            when: "restic_enabled and wizard_mode == 'customize'"
         repeatables:
           - id: restic-targets
             title: Restic Backup Targets

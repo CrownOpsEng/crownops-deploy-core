@@ -67,6 +67,7 @@ local_markdown_workspaces:
 {% endfor %}
 
 restic_enabled: {{ restic_enabled | yaml_value }}
+restic_apt_cache_valid_time: {{ restic_apt_cache_valid_time | yaml_value }}
 restic_targets:
 {% for target in restic_targets %}
   - name: {{ target.name | yaml_value }}
