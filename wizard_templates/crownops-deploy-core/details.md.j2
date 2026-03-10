@@ -69,9 +69,17 @@
 
 ## Next-Step Commands
 
-- Full deployment:
+- Resume the guided setup stages:
+  ```bash
+  {{ setup_command }}
+  ```
+- Lower-level deployment runner:
   ```bash
   {{ deploy_command }}
+  ```
+- Lower-level SSH lockdown runner:
+  ```bash
+  {{ ssh_lockdown_command }}
   ```
 {% if backup_destination_bootstrap_plans %}
 - Backup destination prerequisites:

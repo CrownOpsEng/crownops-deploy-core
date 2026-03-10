@@ -31,7 +31,7 @@ cat <<'EOF'
 
 Local config scaffolded from examples.
 Next steps:
-1. For guided setup, prefer ./scripts/configure.sh.
+1. For guided setup, prefer ./scripts/setup.sh.
 2. Fill inventories/prod/hosts.yml with real hosts and SSH users.
 3. Fill inventories/prod/group_vars/all.yml with real non-secret settings.
 4. Put secret values in inventories/prod/group_vars/vault.yml.

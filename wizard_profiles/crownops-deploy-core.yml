@@ -412,7 +412,7 @@ sections:
         help: |
           This pins the remote SFTP backup destination, not the core host.
           The wizard can scan the destination on your machine, show the key types it found, and let you choose what to trust.
-          If you already have verified known_hosts lines, you can paste them instead.
+          If you already have verified known_hosts lines, enter one line per prompt and submit a blank line when you are done.
         when: "target_mode == 'sftp_ssh'"
         source:
           kind: known_hosts_scan
@@ -449,33 +449,6 @@ sections:
         label: Lockdown allowlist CIDRs (comma-separated)
         type: list
         default: []
-post_write_actions:
-  - kind: local_command
-    working_directory_template: "{{ repo_root }}"
-    message_template: |
-      The wizard wrote the deployment configuration and generated follow-up commands for this environment.
-
-      Deployment handoff:
-      - Run the full deployment now using the generated inventory and secrets.
-      {% if backup_destination_bootstrap_plans %}
-      - Prepare external prerequisites first for backup destination connectivity, users, SSH keys, and repository paths.
-      {% endif %}
-    prompt: How should the wizard hand off the next step?
-    available_choices:
-      - show
-      - run
-      - leave
-    default_choice: show
-    command_options:
-      - id: deploy
-        label: Run deployment
-        description: Execute the full deployment flow with the generated configuration.
-        command_template: "{{ deploy_command }}"
-      - id: prerequisites
-        when: "backup_destination_bootstrap_plans"
-        label: Set up prerequisites
-        description: Prepare backup destination connectivity, users, keys, and repository paths before deployment.
-        command_template: "{{ wizard_run_dir }}/backup-destination-prerequisites.sh"
 outputs:
   - id: hosts
     path: inventories/prod/hosts.yml
