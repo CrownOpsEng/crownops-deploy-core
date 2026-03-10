@@ -7,7 +7,48 @@
 - name: Capture inventory view for validation
   ansible.builtin.set_fact:
     preflight_group_hosts: "{{ groups[preflight_target_group] | default([]) }}"
-    preflight_inventory_dump: "{{ hostvars | to_nice_yaml }}"
+    preflight_primary_hostvars: "{{ hostvars[(groups[preflight_target_group] | default([]) | first)] | default({}) if (groups[preflight_target_group] | default([]) | length) > 0 else {} }}"
+    preflight_config_dump: |-
+      {{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventories/prod/hosts.yml', errors='ignore') | default('', true) }}
+      {{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventories/prod/group_vars/all/main.yml', errors='ignore') | default('', true) }}
+      {{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventories/prod/group_vars/all/vault.yml', errors='ignore') | default('', true) }}
+      {{ lookup('ansible.builtin.file', playbook_dir ~ '/../inventories/prod/group_vars/core_hosts/main.yml', errors='ignore') | default('', true) }}
+
+- name: Bind target deployment variables into localhost preflight scope
+  ansible.builtin.set_fact:
+    base_domain: "{{ preflight_primary_hostvars.base_domain | default(base_domain | default(omit)) }}"
+    ops_domain: "{{ preflight_primary_hostvars.ops_domain | default(ops_domain | default(omit)) }}"
+    ssh_pubkeys: "{{ preflight_primary_hostvars.ssh_pubkeys | default(ssh_pubkeys | default(omit)) }}"
+    bootstrap_target_ubuntu_release: "{{ preflight_primary_hostvars.bootstrap_target_ubuntu_release | default(bootstrap_target_ubuntu_release | default(omit)) }}"
+    feature_obsidian_enabled: "{{ preflight_primary_hostvars.feature_obsidian_enabled | default(feature_obsidian_enabled | default(omit)) }}"
+    obsidian_access_mode: "{{ preflight_primary_hostvars.obsidian_access_mode | default(obsidian_access_mode | default(omit)) }}"
+    traefik_acme_email: "{{ preflight_primary_hostvars.traefik_acme_email | default(traefik_acme_email | default(omit)) }}"
+    acme_dns_provider: "{{ preflight_primary_hostvars.acme_dns_provider | default(acme_dns_provider | default(omit)) }}"
+    acme_env: "{{ preflight_primary_hostvars.acme_env | default(acme_env | default(omit)) }}"
+    private_mesh_url_strategy: "{{ preflight_primary_hostvars.private_mesh_url_strategy | default(private_mesh_url_strategy | default(omit)) }}"
+    tailscale_tailnet_name: "{{ preflight_primary_hostvars.tailscale_tailnet_name | default(tailscale_tailnet_name | default(omit)) }}"
+    obsidian_base_url: "{{ preflight_primary_hostvars.obsidian_base_url | default(obsidian_base_url | default(omit)) }}"
+    ufw_allowed_tcp_public: "{{ preflight_primary_hostvars.ufw_allowed_tcp_public | default(ufw_allowed_tcp_public | default(omit)) }}"
+    couchdb_admin_user: "{{ preflight_primary_hostvars.couchdb_admin_user | default(couchdb_admin_user | default(omit)) }}"
+    couchdb_admin_password: "{{ preflight_primary_hostvars.couchdb_admin_password | default(couchdb_admin_password | default(omit)) }}"
+    couchdb_vaults: "{{ preflight_primary_hostvars.couchdb_vaults | default(couchdb_vaults | default(omit)) }}"
+    local_markdown_workspaces: "{{ preflight_primary_hostvars.local_markdown_workspaces | default(local_markdown_workspaces | default(omit)) }}"
+    vault_root: "{{ preflight_primary_hostvars.vault_root | default(vault_root | default(omit)) }}"
+    exports_root: "{{ preflight_primary_hostvars.exports_root | default(exports_root | default(omit)) }}"
+    restic_enabled: "{{ preflight_primary_hostvars.restic_enabled | default(restic_enabled | default(omit)) }}"
+    restic_targets: "{{ preflight_primary_hostvars.restic_targets | default(restic_targets | default(omit)) }}"
+    restic_backup_jobs: "{{ preflight_primary_hostvars.restic_backup_jobs | default(restic_backup_jobs | default(omit)) }}"
+    restic_backup_contributions: "{{ preflight_primary_hostvars.restic_backup_contributions | default(restic_backup_contributions | default(omit)) }}"
+    tailscale_auth_key: "{{ preflight_primary_hostvars.tailscale_auth_key | default(tailscale_auth_key | default(omit)) }}"
+    tailscale_hostname: "{{ preflight_primary_hostvars.tailscale_hostname | default(tailscale_hostname | default(omit)) }}"
+    tailscale_tags: "{{ preflight_primary_hostvars.tailscale_tags | default(tailscale_tags | default(omit)) }}"
+    lockdown_confirmed: "{{ preflight_primary_hostvars.lockdown_confirmed | default(lockdown_confirmed | default(omit)) }}"
+    lockdown_enabled: "{{ preflight_primary_hostvars.lockdown_enabled | default(lockdown_enabled | default(omit)) }}"
+    lockdown_mode: "{{ preflight_primary_hostvars.lockdown_mode | default(lockdown_mode | default(omit)) }}"
+    lockdown_allowed_cidrs: "{{ preflight_primary_hostvars.lockdown_allowed_cidrs | default(lockdown_allowed_cidrs | default(omit)) }}"
+    lockdown_control_host_probe_enabled: "{{ preflight_primary_hostvars.lockdown_control_host_probe_enabled | default(lockdown_control_host_probe_enabled | default(omit)) }}"
+    lockdown_control_host_probe_host: "{{ preflight_primary_hostvars.lockdown_control_host_probe_host | default(lockdown_control_host_probe_host | default(omit)) }}"
+  when: (preflight_group_hosts | length) > 0
 
 - name: Check target group population
   ansible.builtin.set_fact:
@@ -160,14 +201,14 @@
     preflight_errors: "{{ preflight_errors + ['couchdb_admin_user or couchdb_admin_password is unset or placeholder.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
-    - couchdb_admin_user is not defined or couchdb_admin_password is not defined or (couchdb_admin_user | string | trim) == '' or (couchdb_admin_password | string | trim) == '' or 'REPLACE_ME' in (couchdb_admin_password | string)
+    - "'couchdb_admin_user:' not in preflight_config_dump or 'couchdb_admin_password:' not in preflight_config_dump or 'couchdb_admin_password: REPLACE_ME' in preflight_config_dump"
 
 - name: Check synced vault definitions exist
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain at least one sync account definition while the Obsidian feature stack is enabled.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
-    - couchdb_vaults is not defined or (couchdb_vaults | length) == 0
+    - "'couchdb_vaults:' not in preflight_config_dump or 'couchdb_vaults: []' in preflight_config_dump"
 
 - name: Check duplicate synced vault names
   ansible.builtin.set_fact:
@@ -221,7 +262,7 @@
     preflight_errors: "{{ preflight_errors + ['restic_enabled=true but restic_targets is empty. Define at least one enabled backup target.'] }}"
   when:
     - restic_enabled | default(true) | bool
-    - restic_targets is not defined or (restic_targets | length) == 0
+    - "'restic_targets:' not in preflight_config_dump or 'restic_targets: []' in preflight_config_dump"
 
 - name: Check restic jobs defined when backups are enabled
   ansible.builtin.set_fact:
@@ -261,7 +302,8 @@
     preflight_errors: "{{ preflight_errors + ['Every restic target must resolve to a non-placeholder password in vault_restic_target_secrets.'] }}"
   when:
     - restic_enabled | default(true) | bool
-    - vault_restic_target_secrets is not defined or (vault_restic_target_secrets | to_nice_yaml) is search('REPLACE_ME')
+    - vault_restic_target_secrets is defined
+    - (vault_restic_target_secrets | to_nice_yaml) is search('REPLACE_ME')
 
 - name: Check restic jobs have valid target_names
   ansible.builtin.set_fact:
@@ -393,9 +435,9 @@
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Placeholder markers remain in inventory variables. Replace REPLACE_ME, example.invalid, and other draft values before deployment.'] }}"
   when: |
-    'REPLACE_ME' in preflight_inventory_dump or
-    'example.invalid' in preflight_inventory_dump or
-    'change-me@' in preflight_inventory_dump
+    'REPLACE_ME' in preflight_config_dump or
+    'example.invalid' in preflight_config_dump or
+    'change-me@' in preflight_config_dump
 
 - name: Probe target hosts with ping without hard fail
   ansible.builtin.ping:

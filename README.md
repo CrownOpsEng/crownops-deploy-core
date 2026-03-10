@@ -19,8 +19,8 @@ This repo should stay thin:
 
 Configuration model:
 
-- `inventories/prod/group_vars/all.yml` is the primary non-secret configuration surface
-- `inventories/prod/group_vars/vault.yml` holds secret values only
+- `inventories/prod/group_vars/all/main.yml` is the primary non-secret configuration surface
+- `inventories/prod/group_vars/all/vault.yml` holds secret values only
 - `.vault_pass` is the repo-local default Ansible Vault password file; keep it local, `0600`, and untracked
 - backup policy is expressed as `restic_targets`, `restic_backup_jobs`, and `restic_backup_contributions`
 

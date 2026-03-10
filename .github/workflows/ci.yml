@@ -36,6 +36,9 @@ jobs:
       - name: Syntax check preflight
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/preflight.yml
 
+      - name: Smoke test preflight placeholder validation
+        run: bash tests/smoke/test_preflight_placeholder_scan.sh
+
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 

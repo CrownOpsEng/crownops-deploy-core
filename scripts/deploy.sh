@@ -7,7 +7,7 @@ cd "${ROOT_DIR}"
 source "${ROOT_DIR}/scripts/lib/ansible-runner.sh"
 
 INVENTORY="inventories/prod/hosts.yml"
-VAULT_FILE="inventories/prod/group_vars/vault.yml"
+VAULT_FILE="inventories/prod/group_vars/all/vault.yml"
 VAULT_PASS_FILE=""
 ASK_VAULT_PASS=0
 RUN_COLLECTIONS=1
@@ -38,9 +38,9 @@ USAGE
 ensure_local_config() {
   local required_files=(
     "inventories/prod/hosts.yml"
-    "inventories/prod/group_vars/all.yml"
-    "inventories/prod/group_vars/core_hosts.yml"
-    "inventories/prod/group_vars/vault.yml"
+    "inventories/prod/group_vars/all/main.yml"
+    "inventories/prod/group_vars/all/vault.yml"
+    "inventories/prod/group_vars/core_hosts/main.yml"
   )
   local file
   for file in "${required_files[@]}"; do

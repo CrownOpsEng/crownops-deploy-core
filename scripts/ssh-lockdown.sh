@@ -7,7 +7,7 @@ cd "${ROOT_DIR}"
 source "${ROOT_DIR}/scripts/lib/ansible-runner.sh"
 
 INVENTORY="inventories/prod/hosts.yml"
-VAULT_FILE="inventories/prod/group_vars/vault.yml"
+VAULT_FILE="inventories/prod/group_vars/all/vault.yml"
 VAULT_PASS_FILE=""
 ASK_VAULT_PASS=0
 CONFIRM_LOCKDOWN=0

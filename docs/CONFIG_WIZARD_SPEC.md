@@ -30,18 +30,18 @@ This document is the implementation reference for the first delivery. It is inte
 The wizard must write the same local files already expected by this repo:
 
 - `inventories/prod/hosts.yml`
-- `inventories/prod/group_vars/all.yml`
-- `inventories/prod/group_vars/core_hosts.yml`
-- `inventories/prod/group_vars/vault.yml`
+- `inventories/prod/group_vars/all/main.yml`
+- `inventories/prod/group_vars/core_hosts/main.yml`
+- `inventories/prod/group_vars/all/vault.yml`
 
 It must preserve the existing split:
 
-- `all.yml` for non-secret structure
-- `vault.yml` for secret values
+- `all/main.yml` for non-secret structure
+- `all/vault.yml` for secret values
 
 Default secret storage backend for this repo:
 
-- local `ansible-vault` encrypted `vault.yml`
+- local `ansible-vault` encrypted `all/vault.yml`
 
 ## Delivery shape
 
@@ -146,7 +146,7 @@ Describes how the deployment consumes the value.
 
 Examples:
 
-- materialize into `inventories/prod/group_vars/vault.yml`
+- materialize into `inventories/prod/group_vars/all/vault.yml`
 - materialize into a future `sops` file
 - leave as a runtime lookup expression
 
@@ -177,7 +177,7 @@ required: true
 when: feature_obsidian_enabled == true
 default: null
 target:
-  file: inventories/prod/group_vars/vault.yml
+  file: inventories/prod/group_vars/all/vault.yml
   path: vault_couchdb_admin_password
 source:
   kind: generate

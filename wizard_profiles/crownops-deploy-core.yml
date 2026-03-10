@@ -617,15 +617,15 @@ outputs:
     template: wizard_templates/crownops-deploy-core/hosts.yml.j2
     mode: "0644"
   - id: all
-    path: inventories/prod/group_vars/all.yml
+    path: inventories/prod/group_vars/all/main.yml
     template: wizard_templates/crownops-deploy-core/all.yml.j2
     mode: "0644"
   - id: core_hosts
-    path: inventories/prod/group_vars/core_hosts.yml
+    path: inventories/prod/group_vars/core_hosts/main.yml
     template: wizard_templates/crownops-deploy-core/core_hosts.yml.j2
     mode: "0644"
   - id: vault
-    path: inventories/prod/group_vars/vault.yml
+    path: inventories/prod/group_vars/all/vault.yml
     template: wizard_templates/crownops-deploy-core/vault.yml.j2
     mode: "0600"
   - id: details

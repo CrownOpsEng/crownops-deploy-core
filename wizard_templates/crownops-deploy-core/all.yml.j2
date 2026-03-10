@@ -22,12 +22,12 @@ feature_obsidian_enabled: {{ feature_obsidian_enabled | yaml_value }}
 obsidian_access_mode: {{ obsidian_access_mode | yaml_value }}
 obsidian_base_url: {{ obsidian_base_url | yaml_value }}
 obsidian_cors_origins: {{ obsidian_cors_origins | yaml_value }}
+internal_network_name: {{ internal_network_name | yaml_value }}
 {% if obsidian_access_mode == 'public_https' %}
 obsidian_service_subdomain: {{ obsidian_service_subdomain | yaml_value }}
 
 traefik_dir: {{ traefik_dir | yaml_value }}
 traefik_network_name: {{ traefik_network_name | yaml_value }}
-internal_network_name: {{ internal_network_name | yaml_value }}
 traefik_acme_email: {{ traefik_acme_email | yaml_value }}
 traefik_certresolver_name: {{ traefik_certresolver_name | yaml_value }}
 traefik_acme_storage: {{ traefik_acme_storage | yaml_value }}

@@ -42,9 +42,9 @@ When you need direct control instead of the wizard-owned workflow stages:
 The generated config still lives in:
 
 - `inventories/prod/hosts.yml`
-- `inventories/prod/group_vars/all.yml`
-- `inventories/prod/group_vars/core_hosts.yml`
-- `inventories/prod/group_vars/vault.yml`
+- `inventories/prod/group_vars/all/main.yml`
+- `inventories/prod/group_vars/core_hosts/main.yml`
+- `inventories/prod/group_vars/all/vault.yml`
 
 Important:
 

@@ -6,10 +6,10 @@ Use Ansible Vault as the deployment source of truth.
 
 For this public repo:
 
-- track only `inventories/prod/group_vars/vault.yml.example`
-- keep the real `inventories/prod/group_vars/vault.yml` ignored
+- track only `inventories/prod/group_vars/all/vault.yml.example`
+- keep the real `inventories/prod/group_vars/all/vault.yml` ignored
 - encrypt the real `vault.yml` locally before deployment
-- keep `inventories/prod/group_vars/all.yml` for non-secret structure that references vault-backed values
+- keep `inventories/prod/group_vars/all/main.yml` for non-secret structure that references vault-backed values
 
 Planned configuration workflow:
 

@@ -22,10 +22,12 @@ copy_if_missing() {
   echo "created: ${target} (from ${example})"
 }
 
+mkdir -p "inventories/prod/group_vars/all" "inventories/prod/group_vars/core_hosts"
+
 copy_if_missing "inventories/prod/hosts.yml"
-copy_if_missing "inventories/prod/group_vars/all.yml"
-copy_if_missing "inventories/prod/group_vars/core_hosts.yml"
-copy_if_missing "inventories/prod/group_vars/vault.yml"
+copy_if_missing "inventories/prod/group_vars/all/main.yml"
+copy_if_missing "inventories/prod/group_vars/all/vault.yml"
+copy_if_missing "inventories/prod/group_vars/core_hosts/main.yml"
 
 cat <<'EOF'
 
@@ -33,7 +35,7 @@ Local config scaffolded from examples.
 Next steps:
 1. For guided setup, prefer ./scripts/setup.sh.
 2. Fill inventories/prod/hosts.yml with real hosts and SSH users.
-3. Fill inventories/prod/group_vars/all.yml with real non-secret settings.
-4. Put secret values in inventories/prod/group_vars/vault.yml.
-5. Encrypt inventories/prod/group_vars/vault.yml with ansible-vault.
+3. Fill inventories/prod/group_vars/all/main.yml with real non-secret settings.
+4. Put secret values in inventories/prod/group_vars/all/vault.yml.
+5. Encrypt inventories/prod/group_vars/all/vault.yml with ansible-vault.
 EOF

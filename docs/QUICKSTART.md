@@ -51,7 +51,7 @@ It will:
 - optionally write a sensitive details file
 - optionally write a sanitized audit log
 - guide vault password strategy before any preparation or deployment stage runs
-- optionally encrypt or re-encrypt `inventories/prod/group_vars/vault.yml`
+- optionally encrypt or re-encrypt `inventories/prod/group_vars/all/vault.yml`
 - install required collections from GitHub
 - optionally run prerequisite, collection, preflight, bootstrap, deploy, backup, verification, and SSH hardening stages as explicit wizard stages
 
@@ -67,7 +67,7 @@ Use `./scripts/deploy.sh` only when you want the lower-level deployment runner d
 
 Primary configuration surface:
 
-- `inventories/prod/group_vars/all.yml`
+- `inventories/prod/group_vars/all/main.yml`
 
 That file should remain the main place where you enable features and define non-secret behavior:
 
@@ -79,21 +79,21 @@ That file should remain the main place where you enable features and define non-
 
 Secrets belong in:
 
-- `inventories/prod/group_vars/vault.yml`
+- `inventories/prod/group_vars/all/vault.yml`
 
 Tracked templates:
 
 - `inventories/prod/hosts.yml.example`
-- `inventories/prod/group_vars/all.yml.example`
-- `inventories/prod/group_vars/core_hosts.yml.example`
-- `inventories/prod/group_vars/vault.yml.example`
+- `inventories/prod/group_vars/all/main.yml.example`
+- `inventories/prod/group_vars/core_hosts/main.yml.example`
+- `inventories/prod/group_vars/all/vault.yml.example`
 
 Local working files created by `./scripts/setup.sh`:
 
 - `inventories/prod/hosts.yml`
-- `inventories/prod/group_vars/all.yml`
-- `inventories/prod/group_vars/core_hosts.yml`
-- `inventories/prod/group_vars/vault.yml`
+- `inventories/prod/group_vars/all/main.yml`
+- `inventories/prod/group_vars/core_hosts/main.yml`
+- `inventories/prod/group_vars/all/vault.yml`
 
 Fallback:
 
@@ -110,10 +110,10 @@ At minimum set:
 - DNS and ACME values only for `public_https`
 - a concrete private mesh base URL only for `private_mesh`
 - keep `5984` off the public firewall in `private_mesh`; that path assumes your VPN or mesh provides reachability
-- synced account structure in `all.yml` and CouchDB passwords in `vault.yml` if Obsidian is enabled
+- synced account structure in `all/main.yml` and CouchDB passwords in `all/vault.yml` if Obsidian is enabled
 - local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
 - backup targets, backup jobs, and contribution wiring
-- Tailscale hostname/tags in `all.yml` and optional auth key in `vault.yml`
+- Tailscale hostname/tags in `all/main.yml` and optional auth key in `all/vault.yml`
 
 Notes:
 
@@ -131,12 +131,12 @@ Notes:
 
 ## Secrets
 
-Put secret values in `inventories/prod/group_vars/vault.yml`, then encrypt that file with Ansible Vault before the first real deployment.
+Put secret values in `inventories/prod/group_vars/all/vault.yml`, then encrypt that file with Ansible Vault before the first real deployment.
 
 Recommended split:
 
-- `all.yml`: domains, feature flags, ports, paths, usernames, and other non-secret structure
-- `vault.yml`: passwords, SSH private keys, pinned `known_hosts`, and optional `tailscale_auth_key`
+- `all/main.yml`: domains, feature flags, ports, paths, usernames, and other non-secret structure
+- `all/vault.yml`: passwords, SSH private keys, pinned `known_hosts`, and optional `tailscale_auth_key`
 
 ## Manual phase commands
 

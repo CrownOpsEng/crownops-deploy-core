@@ -1,12 +1,14 @@
 ---
 - name: Bootstrap deployment core hosts
   hosts: core_hosts
-  remote_user: "{{ bootstrap_ansible_user | default(ansible_user) }}"
   become: true
+  vars:
+    bootstrap_connection_user: "{{ bootstrap_ansible_user | default(hostvars[inventory_hostname].ansible_user) }}"
+    ansible_user: "{{ bootstrap_connection_user }}"
+  remote_user: "{{ bootstrap_connection_user }}"
   roles:
     - role: crownops.deploy_base.bootstrap_host
       vars:
-        bootstrap_target_ubuntu_release: "{{ bootstrap_target_ubuntu_release }}"
         bootstrap_hostname: "{{ tailscale_hostname | default(inventory_hostname) }}"
         bootstrap_timezone: "{{ timezone }}"
         bootstrap_base_packages: "{{ base_packages }}"

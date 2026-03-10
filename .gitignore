@@ -23,8 +23,8 @@ reports/
 
 # Real inventory values stay local; example files are versioned.
 inventories/prod/hosts.yml
-inventories/prod/group_vars/all.yml
-inventories/prod/group_vars/core_hosts.yml
-inventories/prod/group_vars/vault.yml
+inventories/prod/group_vars/all/main.yml
+inventories/prod/group_vars/all/vault.yml
+inventories/prod/group_vars/core_hosts/main.yml
 inventories/prod/*.bak-*
-inventories/prod/group_vars/*.bak-*
+inventories/prod/group_vars/**/*.bak-*
