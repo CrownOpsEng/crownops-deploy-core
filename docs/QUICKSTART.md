@@ -38,6 +38,8 @@ VPS/
 
 `./scripts/configure.sh` will use the sibling repo automatically when present. In other environments it can also run an installed wizard binary or a path supplied through `ANSIBLE_CONFIG_WIZARD_PROJECT`.
 
+When this repo is developed in a multi-checkout workspace, `./scripts/install-collections.sh` also prefers sibling `crownops-deploy-base/` and `crownops-deploy-services/` checkouts before falling back to the remote default branches. Set `CROWNOPS_BASE_COLLECTION_SOURCE` or `CROWNOPS_SERVICES_COLLECTION_SOURCE` to override that resolution explicitly.
+
 It will:
 
 - collect or generate configuration interactively

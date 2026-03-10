@@ -2,10 +2,43 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE_DIR="$(dirname "${ROOT_DIR}")"
 COLLECTIONS_PATH="${ROOT_DIR}/.ansible/collections"
 PUBLIC_REQUIREMENTS="${ROOT_DIR}/collections/requirements.yml"
-BASE_COLLECTION_SOURCE="${CROWNOPS_BASE_COLLECTION_SOURCE:-git+https://github.com/CrownOpsEng/crownops-deploy-base.git}"
-SERVICES_COLLECTION_SOURCE="${CROWNOPS_SERVICES_COLLECTION_SOURCE:-git+https://github.com/CrownOpsEng/crownops-deploy-services.git}"
+BASE_COLLECTION_REMOTE_DEFAULT="git+https://github.com/CrownOpsEng/crownops-deploy-base.git"
+SERVICES_COLLECTION_REMOTE_DEFAULT="git+https://github.com/CrownOpsEng/crownops-deploy-services.git"
+
+resolve_collection_source() {
+  local source_override="$1"
+  local sibling_checkout_name="$2"
+  local remote_default="$3"
+  local sibling_checkout="${WORKSPACE_DIR}/${sibling_checkout_name}"
+
+  if [[ -n "${source_override}" ]]; then
+    echo "${source_override}"
+    return 0
+  fi
+
+  if [[ -f "${sibling_checkout}/galaxy.yml" ]]; then
+    echo "${sibling_checkout}"
+    return 0
+  fi
+
+  echo "${remote_default}"
+}
+
+BASE_COLLECTION_SOURCE="$(
+  resolve_collection_source \
+    "${CROWNOPS_BASE_COLLECTION_SOURCE:-}" \
+    "crownops-deploy-base" \
+    "${BASE_COLLECTION_REMOTE_DEFAULT}"
+)"
+SERVICES_COLLECTION_SOURCE="$(
+  resolve_collection_source \
+    "${CROWNOPS_SERVICES_COLLECTION_SOURCE:-}" \
+    "crownops-deploy-services" \
+    "${SERVICES_COLLECTION_REMOTE_DEFAULT}"
+)"
 
 die() {
   echo "ERROR: $*" >&2
