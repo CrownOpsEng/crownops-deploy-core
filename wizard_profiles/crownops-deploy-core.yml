@@ -368,12 +368,42 @@ sections:
         type: confirm
         default: true
         when: "target_mode == 'sftp_ssh'"
+      - id: bootstrap_with_ansible
+        label: Prepare this backup destination with Ansible
+        help: Recommended for another VPS or your Linux laptop when you control the destination and want the wizard to install the backup key and prepare the repository path.
+        type: confirm
+        default: true
+        when: "target_mode == 'sftp_ssh'"
+      - id: bootstrap_ssh_user
+        label: Existing SSH user for destination setup
+        help: The account the wizard should use to reach the backup destination right now.
+        default_template: "{{ sftp_user }}"
+        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+        required: true
+      - id: bootstrap_ssh_private_key_file
+        label: Optional SSH private key file for destination setup
+        help: Leave blank to use your normal SSH config and agent. Set this if the backup destination needs a specific local key file.
+        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+      - id: bootstrap_use_sudo
+        label: Use sudo during destination setup
+        help: Turn this on when the setup user needs privilege escalation to create the target account or repository path.
+        type: confirm
+        default: true
+        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+      - id: bootstrap_manage_sftp_user
+        label: Create or manage the target backup user
+        help: Turn this on when the SFTP user does not exist yet and should be created by Ansible.
+        type: confirm
+        default: false
+        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
       - id: ssh_public_key
         label: Existing backup SSH public key
         when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
+        required: true
       - id: ssh_private_key
         label: Existing backup SSH private key
         when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
+        required: true
       - id: ssh_known_hosts
         label: Pinned SSH host keys for the backup destination
         type: multiline_text
@@ -412,6 +442,21 @@ sections:
         label: Lockdown allowlist CIDRs (comma-separated)
         type: list
         default: []
+post_write_actions:
+  - kind: local_command
+    when: "action_item.bootstrap_enabled"
+    collection_key: backup_destination_bootstrap_plans
+    working_directory_template: "{{ repo_root }}"
+    message_template: |
+      Backup destination: {{ action_item.name }}
+
+      Host: {{ action_item.host }}:{{ action_item.port }}
+      Existing SSH user: {{ action_item.bootstrap_ssh_user }}
+      Target backup user: {{ action_item.target_user }}
+      Repository path: {{ action_item.repository_path }}
+      {% if action_item.bootstrap_use_sudo %}Sudo is enabled for this setup run.{% else %}Sudo is disabled for this setup run.{% endif %}
+    command_template: "{{ action_item.command }}"
+    prompt: How should the wizard handle this backup destination?
 outputs:
   - id: hosts
     path: inventories/prod/hosts.yml

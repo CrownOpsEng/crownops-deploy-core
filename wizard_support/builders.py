@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import re
+import shlex
 import subprocess
 from typing import Any
 
@@ -25,6 +26,37 @@ def scan_known_hosts(host: str, port: int | str) -> str:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return ""
     return (result.stdout or "").strip()
+
+
+def build_backup_target_bootstrap_command(
+    data: dict[str, Any],
+    item: dict[str, Any],
+    ssh_public_key: str,
+) -> str:
+    parts = [
+        "./scripts/bootstrap-backup-target.sh",
+        "--target-name",
+        item["name"],
+        "--host",
+        item["sftp_host"],
+        "--port",
+        str(item.get("sftp_port", 22)),
+        "--bootstrap-ssh-user",
+        item["bootstrap_ssh_user"],
+        "--target-user",
+        item["sftp_user"],
+        "--repository-path",
+        item["sftp_path"],
+        "--public-key",
+        ssh_public_key,
+    ]
+    if item.get("bootstrap_use_sudo", True):
+        parts.append("--use-sudo")
+    if item.get("bootstrap_manage_sftp_user", False):
+        parts.append("--manage-target-user")
+    if item.get("bootstrap_ssh_private_key_file"):
+        parts.extend(["--private-key-file", item["bootstrap_ssh_private_key_file"]])
+    return " ".join(shlex.quote(part) for part in parts)
 
 
 def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
@@ -101,6 +133,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     restic_targets = []
     vault_restic_target_secrets: dict[str, dict[str, Any]] = {}
     restic_target_setup_notes = []
+    backup_destination_bootstrap_plans = []
     for item in data.get("restic_targets_input", []):
         key = sanitize_identifier(item["name"])
         target_mode = item.get("target_mode") or "sftp_ssh"
@@ -149,6 +182,21 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
                     "known_hosts": known_hosts,
                 }
             )
+            if item.get("bootstrap_with_ansible", False) and ssh_public_key:
+                backup_destination_bootstrap_plans.append(
+                    {
+                        "name": item["name"],
+                        "bootstrap_enabled": True,
+                        "host": item["sftp_host"],
+                        "port": item.get("sftp_port", 22),
+                        "bootstrap_ssh_user": item.get("bootstrap_ssh_user") or item["sftp_user"],
+                        "target_user": item["sftp_user"],
+                        "repository_path": item["sftp_path"],
+                        "bootstrap_use_sudo": bool(item.get("bootstrap_use_sudo", True)),
+                        "bootstrap_manage_sftp_user": bool(item.get("bootstrap_manage_sftp_user", False)),
+                        "command": build_backup_target_bootstrap_command(data, item, ssh_public_key),
+                    }
+                )
 
         vault_restic_target_secrets[key] = {
             "password": item["password"],
@@ -172,6 +220,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data["vault_restic_target_secrets"] = vault_restic_target_secrets
     data["generated_ssh_public_keys"] = generated_ssh_public_keys
     data["restic_target_setup_notes"] = restic_target_setup_notes
+    data["backup_destination_bootstrap_plans"] = backup_destination_bootstrap_plans
 
     target_names = [item["name"] for item in restic_targets]
     if data.get("restic_enabled", True) and target_names:

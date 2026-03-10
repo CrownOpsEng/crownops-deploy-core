@@ -67,6 +67,18 @@
 - No SFTP backup target setup notes were generated.
 {% endif %}
 
+{% if backup_destination_bootstrap_plans %}
+
+### Optional destination bootstrap
+
+{% for plan in backup_destination_bootstrap_plans %}
+- {{ plan.name }}
+  ```bash
+  {{ plan.command }}
+  ```
+{% endfor %}
+{% endif %}
+
 ## Raw Secret Values
 
 {% if include_secret_details %}

@@ -127,6 +127,7 @@ Notes:
 - if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works
 - SFTP backup transport supports SSH keys on a per-target basis by setting `ssh_private_key` and `ssh_known_hosts` under each `restic_targets` entry
 - the wizard can guide SFTP backup targets by asking for host, user, path, and port, then deriving the restic repository URL and attempting `ssh-keyscan` automatically
+- for Linux backup destinations you control, the wizard can optionally run `playbooks/backup-target-bootstrap.yml` after config write to create the target user when needed, install the backup key, and prepare the repository path using Ansible
 - staged SSH lockdown is two-phase: `--enable-lockdown` runs the phase, `--confirm-lockdown` is required before public SSH can actually be removed
 - break-glass file `lockdown_break_glass_file` short-circuits restrictive changes if recovery is needed
 
