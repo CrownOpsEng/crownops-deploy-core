@@ -209,6 +209,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
                 "name": key,
                 "display_name": item["name"],
                 "repository": repository,
+                "sftp_port": int(item.get("sftp_port", 22)),
                 "password_reference": f"{{{{ vault_restic_target_secrets.{key}.password }}}}",
                 "ssh_private_key_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_private_key | default('') }}}}",
                 "ssh_known_hosts_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_known_hosts | default('') }}}}",

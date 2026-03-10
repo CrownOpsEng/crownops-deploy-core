@@ -41,6 +41,7 @@ result = build_crownops_deploy_core(
                 "target_mode": "sftp_ssh",
                 "sftp_user": "backup",
                 "sftp_host": "backup.example.com",
+                "sftp_port": 2222,
                 "sftp_path": "/srv/restic/core",
                 "password": "secret-1",
             },
@@ -57,6 +58,9 @@ result = build_crownops_deploy_core(
 target_names = [item["name"] for item in result["restic_targets"]]
 if target_names != ["h4f", "laptop_backup"]:
     raise SystemExit(f"unexpected normalized restic target names: {target_names!r}")
+
+if result["restic_targets"][0]["sftp_port"] != 2222:
+    raise SystemExit(f"expected first restic target to preserve sftp_port, got {result['restic_targets'][0]['sftp_port']!r}")
 
 for job in result["restic_backup_jobs"]:
     if job["target_names"] != ["h4f", "laptop_backup"]:

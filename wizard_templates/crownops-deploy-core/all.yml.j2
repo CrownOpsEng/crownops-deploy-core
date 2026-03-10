@@ -71,6 +71,9 @@ restic_targets:
 {% for target in restic_targets %}
   - name: {{ target.name | yaml_value }}
     repository: {{ target.repository | yaml_value }}
+{% if target.sftp_port is defined %}
+    sftp_port: {{ target.sftp_port | yaml_value }}
+{% endif %}
     password: "{{ target.password_reference }}"
     ssh_private_key: "{{ target.ssh_private_key_reference }}"
     ssh_known_hosts: "{{ target.ssh_known_hosts_reference }}"
