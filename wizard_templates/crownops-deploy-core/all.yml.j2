@@ -23,6 +23,12 @@ obsidian_access_mode: {{ obsidian_access_mode | yaml_value }}
 obsidian_base_url: {{ obsidian_base_url | yaml_value }}
 obsidian_cors_origins: {{ obsidian_cors_origins | yaml_value }}
 internal_network_name: {{ internal_network_name | yaml_value }}
+{% if obsidian_access_mode == 'private_mesh' %}
+private_mesh_url_strategy: {{ private_mesh_url_strategy | yaml_value }}
+{% if private_mesh_url_strategy == 'tailscale_magicdns' %}
+tailscale_tailnet_name: {{ tailscale_tailnet_name | yaml_value }}
+{% endif %}
+{% endif %}
 {% if obsidian_access_mode == 'public_https' %}
 obsidian_service_subdomain: {{ obsidian_service_subdomain | yaml_value }}
 

@@ -178,8 +178,8 @@ phases:
             when: "feature_obsidian_enabled"
           - id: tailscale_hostname
             label: Tailscale hostname
-            help: Planned node name for mesh access. This can be set before the host joins the tailnet.
-            default_template: "{{ host_name }}"
+            help: Planned node name for mesh access. Use a DNS-safe machine name with letters, numbers, and hyphens so the derived MagicDNS hostname stays valid.
+            default_template: "{{ host_name | lower | replace('.', '-') }}"
           - id: tailscale_auth_key
             label: Tailscale auth key (blank for manual join)
             help: Leave blank if you want to join the tailnet manually after bootstrap.
@@ -221,13 +221,13 @@ phases:
             when: "feature_obsidian_enabled and obsidian_access_mode == 'private_mesh'"
           - id: tailscale_tailnet_name
             label: Tailscale tailnet name
-            help: Used to derive a planned MagicDNS hostname like core-01.<tailnet>.ts.net before the machine joins.
+            help: Used to derive a planned MagicDNS hostname like core-01.<tailnet>.ts.net before the machine joins. Enter only the tailnet name, not the trailing .ts.net suffix.
             required: true
             when: "feature_obsidian_enabled and obsidian_access_mode == 'private_mesh' and private_mesh_url_strategy == 'tailscale_magicdns'"
           - id: obsidian_base_url
             label: Obsidian base URL
             help: Public HTTPS derives this from the subdomain. Explicit private mesh should use the exact URL clients will open, such as http://100.x.y.z:5984 or https://notes.mesh.example.
-            default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% elif private_mesh_url_strategy == 'tailscale_magicdns' and tailscale_tailnet_name %}http://{{ tailscale_hostname }}.{{ tailscale_tailnet_name }}.ts.net:{{ couchdb_port }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
+            default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% elif private_mesh_url_strategy == 'tailscale_magicdns' and tailscale_tailnet_name %}http://{{ tailscale_hostname | lower | replace('.', '-') }}.{{ tailscale_tailnet_name | replace('.ts.net', '') }}.ts.net:{{ couchdb_port }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
             required: true
             when: "feature_obsidian_enabled and (obsidian_access_mode == 'public_https' or private_mesh_url_strategy == 'explicit_url')"
           - id: obsidian_cors_origins
