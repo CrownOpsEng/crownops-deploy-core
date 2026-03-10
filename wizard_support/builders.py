@@ -8,7 +8,11 @@ from typing import Any
 
 from ansible_config_wizard.generators import fingerprint, generate_value
 
+from wizard_support.obsidian_livesync import build_livesync_settings, build_setup_uri
+
 _RESTIC_TARGET_KEYPAIR_CACHE: dict[tuple[str, str], dict[str, str]] = {}
+_OBSIDIAN_LIVESYNC_BOOTSTRAP_SECRET_CACHE: dict[tuple[str, str], dict[str, str]] = {}
+_OBSIDIAN_LIVESYNC_HANDOFF_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
 
 def sanitize_identifier(value: str) -> str:
@@ -67,6 +71,60 @@ def cached_restic_target_keypair(data: dict[str, Any], target_key: str) -> dict[
     return copy.deepcopy(keypair)
 
 
+def cached_obsidian_livesync_handoff(
+    data: dict[str, Any],
+    account: dict[str, Any],
+    bootstrap_secret: dict[str, str],
+) -> dict[str, Any]:
+    run_scope = str(data.get("wizard_run_dir") or data.get("repo_root") or "")
+    cache_key = (run_scope, account["secret_key"])
+    handoff = _OBSIDIAN_LIVESYNC_HANDOFF_CACHE.get(cache_key)
+    if handoff is None:
+        settings = build_livesync_settings(
+            couchdb_uri=data["obsidian_base_url"],
+            couchdb_user=account["user"],
+            couchdb_password=account["password"],
+            couchdb_dbname=account["db_name"],
+            vault_passphrase=bootstrap_secret["vault_passphrase"],
+        )
+        handoff = {
+            "name": account["name"],
+            "secret_key": account["secret_key"],
+            "couchdb_uri": data["obsidian_base_url"],
+            "db_name": account["db_name"],
+            "user": account["user"],
+            "password": account["password"],
+            "vault_passphrase": bootstrap_secret["vault_passphrase"],
+            "setup_uri_passphrase": bootstrap_secret["setup_uri_passphrase"],
+            "setup_uri": build_setup_uri(settings, bootstrap_secret["setup_uri_passphrase"]),
+        }
+        _OBSIDIAN_LIVESYNC_HANDOFF_CACHE[cache_key] = copy.deepcopy(handoff)
+    return copy.deepcopy(handoff)
+
+
+def cached_obsidian_livesync_bootstrap_secret(
+    data: dict[str, Any],
+    account_key: str,
+    existing_secret: dict[str, str] | None = None,
+) -> dict[str, str]:
+    if existing_secret:
+        return {
+            "vault_passphrase": existing_secret["vault_passphrase"],
+            "setup_uri_passphrase": existing_secret["setup_uri_passphrase"],
+        }
+
+    run_scope = str(data.get("wizard_run_dir") or data.get("repo_root") or "")
+    cache_key = (run_scope, account_key)
+    bootstrap_secret = _OBSIDIAN_LIVESYNC_BOOTSTRAP_SECRET_CACHE.get(cache_key)
+    if bootstrap_secret is None:
+        bootstrap_secret = {
+            "vault_passphrase": generate_value("passphrase", {"words": 8}),
+            "setup_uri_passphrase": generate_value("passphrase", {"words": 4}),
+        }
+        _OBSIDIAN_LIVESYNC_BOOTSTRAP_SECRET_CACHE[cache_key] = copy.deepcopy(bootstrap_secret)
+    return copy.deepcopy(bootstrap_secret)
+
+
 def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data = copy.deepcopy(raw)
     data["setup_command"] = "./scripts/setup.sh"
@@ -120,26 +178,45 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
 
         accounts = []
         account_passwords: dict[str, str] = {}
+        existing_bootstrap_secrets = copy.deepcopy(data.get("vault_obsidian_livesync_bootstrap_accounts", {}) or {})
+        bootstrap_secrets: dict[str, dict[str, str]] = {}
+        obsidian_vault_handoffs = []
         for item in data.get("obsidian_vault_accounts", []):
             key = sanitize_identifier(item["name"])
             account_passwords[key] = item["password"]
-            accounts.append(
-                {
-                    "name": item["name"],
-                    "secret_key": key,
-                    "db_name": item.get("db_name") or f"vault_{key}",
-                    "user": item.get("user") or f"vault_{key}_user",
-                    "password_reference": f"{{{{ vault_couchdb_account_passwords.{key} }}}}",
-                }
+            account = {
+                "name": item["name"],
+                "secret_key": key,
+                "db_name": item.get("db_name") or f"vault_{key}",
+                "user": item.get("user") or f"vault_{key}_user",
+                "password": item["password"],
+                "password_reference": f"{{{{ vault_couchdb_account_passwords.{key} }}}}",
+            }
+            accounts.append(account)
+            bootstrap_secret = cached_obsidian_livesync_bootstrap_secret(
+                data,
+                key,
+                existing_bootstrap_secrets.get(key),
+            )
+            bootstrap_secrets[key] = {
+                "vault_passphrase": bootstrap_secret["vault_passphrase"],
+                "setup_uri_passphrase": bootstrap_secret["setup_uri_passphrase"],
+            }
+            obsidian_vault_handoffs.append(
+                cached_obsidian_livesync_handoff(data, account, bootstrap_secrets[key])
             )
         data["couchdb_vaults"] = accounts
         data["vault_couchdb_account_passwords"] = account_passwords
+        data["vault_obsidian_livesync_bootstrap_accounts"] = bootstrap_secrets
+        data["obsidian_vault_handoffs"] = obsidian_vault_handoffs
     else:
         data["couchdb_vaults"] = []
         data["vault_couchdb_account_passwords"] = {}
+        data["vault_obsidian_livesync_bootstrap_accounts"] = {}
         data["vault_couchdb_admin_password"] = ""
         data["obsidian_base_url"] = ""
         data["obsidian_cors_origins"] = []
+        data["obsidian_vault_handoffs"] = []
 
     restic_targets = []
     vault_restic_target_secrets: dict[str, dict[str, Any]] = {}
@@ -293,6 +370,19 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     for key, value in data.get("vault_couchdb_account_passwords", {}).items():
         data["generated_secret_fingerprints"].append(
             {"label": f"CouchDB account password: {key}", "fingerprint": fingerprint(value)}
+        )
+    for key, value in data.get("vault_obsidian_livesync_bootstrap_accounts", {}).items():
+        data["generated_secret_fingerprints"].append(
+            {
+                "label": f"Obsidian bootstrap vault passphrase: {key}",
+                "fingerprint": fingerprint(value["vault_passphrase"]),
+            }
+        )
+        data["generated_secret_fingerprints"].append(
+            {
+                "label": f"Obsidian setup URI passphrase: {key}",
+                "fingerprint": fingerprint(value["setup_uri_passphrase"]),
+            }
         )
     for key, value in data.get("vault_restic_target_secrets", {}).items():
         data["generated_secret_fingerprints"].append(

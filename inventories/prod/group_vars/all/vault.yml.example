@@ -17,6 +17,16 @@ vault_couchdb_account_passwords:
   user_a: "REPLACE_ME"
   user_b: "REPLACE_ME"
   user_c: "REPLACE_ME"
+vault_obsidian_livesync_bootstrap_accounts:
+  user_a:
+    vault_passphrase: "REPLACE_ME"
+    setup_uri_passphrase: "REPLACE_ME"
+  user_b:
+    vault_passphrase: "REPLACE_ME"
+    setup_uri_passphrase: "REPLACE_ME"
+  user_c:
+    vault_passphrase: "REPLACE_ME"
+    setup_uri_passphrase: "REPLACE_ME"
 vault_restic_target_secrets:
   primary:
     password: "REPLACE_ME"

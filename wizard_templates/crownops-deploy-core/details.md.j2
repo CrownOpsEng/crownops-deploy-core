@@ -35,6 +35,29 @@
 - No generated secret fingerprints captured.
 {% endif %}
 
+## Obsidian Vault Handoff
+
+{% if obsidian_vault_handoffs %}
+- Treat every value below as sensitive. The setup URI imports the full LiveSync client configuration, and the bootstrap vault passphrase should be rotated after the first successful sync if operator privacy matters.
+{% for vault in obsidian_vault_handoffs %}
+
+### {{ vault.name }}
+
+- CouchDB endpoint: `{{ vault.couchdb_uri }}`
+- CouchDB database: `{{ vault.db_name }}`
+- CouchDB username: `{{ vault.user }}`
+- CouchDB password: `{{ vault.password }}`
+- Setup URI passphrase: `{{ vault.setup_uri_passphrase }}`
+- Bootstrap LiveSync vault passphrase: `{{ vault.vault_passphrase }}`
+- Import flow: Obsidian -> Command palette -> `Use the copied setup URI`
+```text
+{{ vault.setup_uri }}
+```
+{% endfor %}
+{% else %}
+- Obsidian LiveSync handoff data was not generated.
+{% endif %}
+
 ## Restic Target Setup
 
 {% if restic_target_setup_notes %}

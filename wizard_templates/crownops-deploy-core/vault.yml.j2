@@ -4,6 +4,16 @@ vault_couchdb_account_passwords:
 {% for key, value in vault_couchdb_account_passwords.items() %}
   {{ key }}: {{ value | yaml_value }}
 {% endfor %}
+vault_obsidian_livesync_bootstrap_accounts:
+{% if vault_obsidian_livesync_bootstrap_accounts %}
+{% for key, value in vault_obsidian_livesync_bootstrap_accounts.items() %}
+  {{ key }}:
+    vault_passphrase: {{ value.vault_passphrase | yaml_value }}
+    setup_uri_passphrase: {{ value.setup_uri_passphrase | yaml_value }}
+{% endfor %}
+{% else %}
+  {}
+{% endif %}
 vault_restic_target_secrets:
 {% for key, value in vault_restic_target_secrets.items() %}
   {{ key }}:
