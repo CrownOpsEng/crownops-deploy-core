@@ -54,16 +54,14 @@ defaults:
   lockdown_control_host_probe_enabled: false
   lockdown_control_host_probe_host: ""
   lockdown_control_host_probe_timeout: 8
+startup_fields:
+  - id: wizard_mode
+    label: Setup mode
+    help: Quick keeps the defaults moving. Customize opens up more of the wiring from the start.
+    type: select
+    choices: [quick, customize]
+    default: quick
 sections:
-  - id: mode
-    title: Wizard Mode
-    description: Start with the fast lane or open up more of the wiring.
-    fields:
-      - id: wizard_mode
-        label: Setup mode
-        type: select
-        choices: [quick, customize]
-        default: quick
   - id: host
     title: Host Basics
     description: Give the host a name, point the wizard at it, and let it establish the first trusted SSH path.
