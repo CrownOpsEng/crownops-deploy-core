@@ -49,6 +49,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 5. Verify whether port 443 should be publicly reachable or source-restricted in your exact model.
 6. Join the host to Tailscale with the real auth approach you want.
 7. Prepare the backup targets and confirm the job/contribution model matches the host role.
+7. Prepare the backup targets and confirm the host job plus composed dataset model matches the host role.
 8. Decide how you will handle LiveSync passphrase ownership and recovery expectations.
 9. Run and validate the package in a controlled sequence, including the staged SSH lockdown.
 

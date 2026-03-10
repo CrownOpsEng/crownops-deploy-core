@@ -21,15 +21,17 @@ ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 - base and ops domain presence and placeholder values
 - SSH public key population
 - Ubuntu release selector validity
-- HTTPS firewall exposure for Traefik on TCP 443 when enabled features require it
-- Traefik ACME email and DNS provider configuration
-- ACME provider env placeholders
-- CouchDB admin credentials when Obsidian is enabled
-- synced Obsidian account definitions
-- duplicate vault names, database names, or users
-- placeholder synced account passwords
+- nested `features.*` and `host.*` contract presence
+- flat legacy inventory variables that should no longer exist
+- Obsidian access mode, URL, CouchDB contract, and sync-account uniqueness
+- public HTTPS bindings through `host.traefik`
+- private mesh planning inputs and public-firewall leakage
+- restic target and job structure under `host.restic`
+- unsupported `host.restic.feature_owned_jobs`
+- composed platform bindings such as ingress routes, datasets, and firewall requests
 - path collisions between `vault_root` and `exports_root`
 - restic repository and password placeholders
+- broad backup dataset root warnings
 - Tailscale auth and bootstrap placeholders
 - placeholder marker sweep across key variables
 - remote connectivity probe

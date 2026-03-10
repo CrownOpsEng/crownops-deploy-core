@@ -4,8 +4,8 @@
 
 1. Rebuild host base.
 2. Reapply service configuration from Ansible so `docker-compose.yml`, `local.ini`, and routing config are recreated from source of truth.
-3. Restore `{{ couchdb_dir }}/data` from restic after stopping CouchDB.
-4. If public HTTPS is enabled, restore `{{ traefik_acme_storage }}` so Traefik keeps its ACME account and issued certificates.
+3. Restore the `obsidian-couchdb-data` dataset after stopping CouchDB.
+4. If public HTTPS is enabled, restore the `traefik-acme` dataset so Traefik keeps its ACME account and issued certificates.
 5. Recreate or verify routing and HTTPS.
 6. Confirm database security objects and per-vault users.
 7. Reconnect device with correct CouchDB credentials.
@@ -28,7 +28,7 @@ Back up durable state only:
 
 - host identity and operator-managed security config under `/etc/ssh`, `/etc/fail2ban`, and `/etc/ufw`
 - local markdown workspaces under `{{ vault_root }}/workspaces`
-- CouchDB data under `{{ couchdb_dir }}/data`
-- Traefik ACME state in `{{ traefik_acme_storage }}` when public HTTPS is enabled
+- CouchDB data under `features.obsidian_livesync.couchdb.dir + '/data'`
+- Traefik ACME state under `host.traefik.acme_storage_path` when public HTTPS is enabled
 
-Do not treat generated compose files, rendered service config, package caches, or broad parent directories such as `/srv/crownops`, `{{ couchdb_dir }}`, or `{{ traefik_dir }}` as primary backup scope when the deployment is reproducible from Ansible.
+Do not treat generated compose files, rendered service config, package caches, or broad parent directories such as `/srv/crownops`, `features.obsidian_livesync.couchdb.dir`, or `host.traefik.layout_root` as primary backup scope when the deployment is reproducible from Ansible.

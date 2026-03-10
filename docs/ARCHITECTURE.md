@@ -26,14 +26,28 @@ Current feature set:
 
 - Obsidian via the `crownops.deploy_services.obsidian_livesync` role
 
-`playbooks/backup.yml` uses the `crownops.deploy_services.restic_host_backups` role.
+Shared host capabilities:
 
-That backup layer is modeled as:
+- `crownops.deploy_services.host_traefik`
+- `crownops.deploy_services.host_restic`
+- `crownops.deploy_base.host_ufw`
+
+`playbooks/backup.yml` uses the `crownops.deploy_services.host_restic` role.
+
+This repo owns one site-local composition step through `roles/platform_bindings`.
+
+That composition layer derives:
+
+- `platform_ingress_routes`
+- `platform_backup_datasets`
+- `platform_ufw_requests`
+
+The backup layer is modeled as:
 
 - targets: backup destinations and transport credentials
-- jobs: logical host backup policies with schedule and retention
-- contributions: feature-specific paths and consistency hooks merged into named jobs
-- converge-time performance policy: no fact gathering for the dedicated backup play, SSH pipelining enabled in the repo Ansible config, and package cache reuse controlled through `restic_apt_cache_valid_time`
+- datasets: composed durable backup scopes owned by the site layer and feature/host boundaries
+- jobs: logical host-owned backup policy with schedule and retention
+- converge-time performance policy: no fact gathering for the dedicated backup play, SSH pipelining enabled in the repo Ansible config, and package cache reuse controlled through `host.restic.apt_cache_valid_time`
 - restore-first scope policy: back up durable state such as host identity, local markdown workspaces, CouchDB data, and Traefik ACME state, not broad service roots that can be rebuilt from Ansible
 
 `playbooks/lockdown.yml` consumes the reusable `crownops.deploy_base.network_lockdown` role so SSH lockdown policy stays consistent across site repos.

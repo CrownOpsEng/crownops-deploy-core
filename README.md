@@ -22,7 +22,9 @@ Configuration model:
 - `inventories/prod/group_vars/all/main.yml` is the primary non-secret configuration surface
 - `inventories/prod/group_vars/all/vault.yml` holds secret values only
 - `.vault_pass` is the repo-local default Ansible Vault password file; keep it local, `0600`, and untracked
-- backup policy is expressed as `restic_targets`, `restic_backup_jobs`, and `restic_backup_contributions`
+- shared host capabilities live under `host.*`
+- feature contracts live under `features.*`
+- site-local composition derives shared ingress, backup datasets, and firewall requests before host roles reconcile them
 
 Read first:
 
