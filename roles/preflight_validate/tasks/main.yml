@@ -178,20 +178,60 @@
     - exports_root is defined
     - (vault_root | string) == (exports_root | string)
 
-- name: Check restic repositories set
+- name: Check restic targets defined when backups are enabled
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_repo_primary and restic_repo_secondary must both be set to non-placeholder repository targets.'] }}"
-  when: restic_repo_primary is not defined or restic_repo_secondary is not defined or 'example.invalid' in (restic_repo_primary | string) or 'example.invalid' in (restic_repo_secondary | string)
+    preflight_errors: "{{ preflight_errors + ['restic_enabled=true but restic_targets is empty. Define at least one enabled backup target.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_targets is not defined or (restic_targets | length) == 0
 
-- name: Check restic passwords set
+- name: Check restic jobs defined when backups are enabled
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_password_primary and/or restic_password_secondary is unset or placeholder.'] }}"
-  when: restic_password_primary is not defined or restic_password_secondary is not defined or 'REPLACE_ME' in (restic_password_primary | string) or 'REPLACE_ME' in (restic_password_secondary | string)
+    preflight_errors: "{{ preflight_errors + ['restic_enabled=true but restic_backup_jobs is empty. Define at least one logical backup job.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_backup_jobs is not defined or (restic_backup_jobs | length) == 0
 
-- name: Check restic backup path list
+- name: Check duplicate restic target names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_backup_paths is empty. There would be nothing to back up.'] }}"
-  when: restic_backup_paths is not defined or (restic_backup_paths | length) == 0
+    preflight_errors: "{{ preflight_errors + ['restic_targets contains duplicate target names.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_targets is defined
+    - ((restic_targets | map(attribute='name') | list | unique | length) != (restic_targets | map(attribute='name') | list | length))
+
+- name: Check duplicate restic job names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_backup_jobs contains duplicate job names.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_backup_jobs is defined
+    - ((restic_backup_jobs | map(attribute='name') | list | unique | length) != (restic_backup_jobs | map(attribute='name') | list | length))
+
+- name: Check restic target placeholders
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_targets still contains placeholder repository or secret references.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_targets is defined
+    - >
+      ('example.invalid' in (restic_targets | to_nice_yaml))
+      or ('REPLACE_ME' in (restic_targets | to_nice_yaml))
+
+- name: Check restic contribution job references
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_backup_contributions references one or more undefined jobs.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_backup_contributions is defined
+    - >
+      (
+        restic_backup_contributions
+        | map(attribute='job')
+        | list
+        | difference(restic_backup_jobs | default([]) | map(attribute='name') | list)
+        | length
+      ) > 0
 
 - name: Warn when Tailscale join is manual
   ansible.builtin.set_fact:

@@ -28,6 +28,12 @@ Current feature set:
 
 `playbooks/backup.yml` uses the `crownops.deploy_services.restic_host_backups` role.
 
+That backup layer is modeled as:
+
+- targets: backup destinations and transport credentials
+- jobs: logical host backup policies with schedule and retention
+- contributions: feature-specific paths and consistency hooks merged into named jobs
+
 `playbooks/lockdown.yml` consumes the reusable `crownops.deploy_base.network_lockdown` role so SSH lockdown policy stays consistent across site repos.
 
 This keeps the site repo thin while still allowing features to evolve independently.
