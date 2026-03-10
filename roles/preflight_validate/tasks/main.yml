@@ -275,6 +275,23 @@
     - restic_targets is defined
     - ((restic_targets | map(attribute='name') | list | unique | length) != (restic_targets | map(attribute='name') | list | length))
 
+- name: Check restic target naming format
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Every restic target name must be lowercase and match ^[a-z0-9][a-z0-9_-]*$. Invalid target names: ' ~ (preflight_invalid_restic_target_names | join(', ')) ~ '.'] }}"
+  vars:
+    preflight_invalid_restic_target_names: >-
+      {{
+        restic_targets
+        | default([])
+        | map(attribute='name')
+        | reject('match', '^[a-z0-9][a-z0-9_-]*$')
+        | list
+      }}
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_targets is defined
+    - (preflight_invalid_restic_target_names | length) > 0
+
 - name: Check duplicate restic job names
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['restic_backup_jobs contains duplicate job names.'] }}"
