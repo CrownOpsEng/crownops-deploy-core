@@ -99,6 +99,26 @@ cleanup() {
 }
 trap cleanup EXIT
 
+verify_ssh_access() {
+  local ssh_command=(
+    ssh
+    -o BatchMode=no
+    -o ConnectTimeout=10
+    -p "${port}"
+  )
+
+  if [[ -n "${private_key_file}" ]]; then
+    ssh_command+=(-i "${private_key_file}")
+  fi
+
+  ssh_command+=("${bootstrap_ssh_user}@${host}" true)
+
+  printf 'Verifying SSH access with a direct probe before Ansible...\n'
+  printf '  %q' "${ssh_command[@]}"
+  printf '\n\n'
+  "${ssh_command[@]}"
+}
+
 inventory_file="${tmpdir}/inventory.yml"
 vars_file="${tmpdir}/vars.json"
 
@@ -187,6 +207,11 @@ select choice in "${choices[@]}"; do
       ;;
   esac
 done
+
+if [[ "${ask_pass:-0}" -eq 0 ]]; then
+  verify_ssh_access
+  printf '\n'
+fi
 
 command=(
   ansible-playbook
