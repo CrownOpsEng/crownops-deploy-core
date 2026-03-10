@@ -263,24 +263,32 @@
     - restic_enabled | default(true) | bool
     - vault_restic_target_secrets is not defined or (vault_restic_target_secrets | to_nice_yaml) is search('REPLACE_ME')
 
-- name: Check restic jobs have target names
+- name: Check restic jobs have valid target_names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Each restic_backup_jobs entry must reference at least one target name.'] }}"
+    preflight_errors: "{{ preflight_errors + ['restic backup job ' ~ (item.name | default('unnamed')) ~ ' must define target_names as a non-empty list of target names.'] }}"
+  loop: "{{ restic_backup_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
   when:
     - restic_enabled | default(true) | bool
-    - restic_backup_jobs is defined
-    - (restic_backup_jobs | selectattr('target_names', 'defined') | list | length) != (restic_backup_jobs | length) or (restic_backup_jobs | map(attribute='target_names') | select('length') | list | length) != (restic_backup_jobs | length)
+    - item.target_names is not defined or item.target_names is string or item.target_names is not sequence or (item.target_names | length) == 0
 
 - name: Check restic job target references
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_backup_jobs references an unknown target name.'] }}"
+    preflight_errors: "{{ preflight_errors + ['restic backup job ' ~ (item.name | default('unnamed')) ~ ' references unknown target names: ' ~ ((item.target_names | difference(preflight_restic_target_names)) | join(', ')) ~ '.'] }}"
+  loop: "{{ restic_backup_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
   vars:
     preflight_restic_target_names: "{{ restic_targets | default([]) | map(attribute='name') | list }}"
   when:
     - restic_enabled | default(true) | bool
-    - restic_backup_jobs is defined
     - restic_targets is defined
-    - (((restic_backup_jobs | map(attribute='target_names') | flatten) | difference(preflight_restic_target_names)) | length) > 0
+    - item.target_names is defined
+    - item.target_names is sequence
+    - item.target_names is not string
+    - (item.target_names | length) > 0
+    - (item.target_names | difference(preflight_restic_target_names) | length) > 0
 
 - name: Check restic jobs have paths or contributions
   ansible.builtin.set_fact:
@@ -385,9 +393,9 @@
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Placeholder markers remain in inventory variables. Replace REPLACE_ME, example.invalid, and other draft values before deployment.'] }}"
   when: |
-    'REPLACE_ME' in (preflight_inventory_dump ~ (vars | to_nice_yaml)) or
-    'example.invalid' in (preflight_inventory_dump ~ (vars | to_nice_yaml)) or
-    'change-me@' in (preflight_inventory_dump ~ (vars | to_nice_yaml))
+    'REPLACE_ME' in preflight_inventory_dump or
+    'example.invalid' in preflight_inventory_dump or
+    'change-me@' in preflight_inventory_dump
 
 - name: Probe target hosts with ping without hard fail
   ansible.builtin.ping:

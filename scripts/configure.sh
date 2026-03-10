@@ -15,6 +15,7 @@ Repo-local wrapper for the configuration wizard.
 
 Common options:
   --answers-file <path>     Pre-seed answers from YAML
+  --vault-password-file <path>  Optional Ansible Vault password file for encryption/preflight
   -y, --yes                 Non-interactive mode for defaults or answers files
   --encrypt-vault           Encrypt inventories/prod/group_vars/vault.yml after write
   --skip-encrypt-vault      Skip vault encryption

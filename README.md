@@ -21,6 +21,7 @@ Configuration model:
 
 - `inventories/prod/group_vars/all.yml` is the primary non-secret configuration surface
 - `inventories/prod/group_vars/vault.yml` holds secret values only
+- `.vault_pass` is the repo-local default Ansible Vault password file; keep it local, `0600`, and untracked
 - backup policy is expressed as `restic_targets`, `restic_backup_jobs`, and `restic_backup_contributions`
 
 Read first:
@@ -53,6 +54,7 @@ Public repo hygiene:
 
 - tracked files end in `.example`
 - real local inventory and vars stay untracked
+- `ansible.cfg` points Ansible at `.vault_pass` by default; the wizard can create that file for you and the deploy wrappers will use it automatically when present
 - `scripts/configure.sh` is the preferred local config entrypoint
 - on a first run, `scripts/configure.sh` can generate or reuse a managed Ed25519 Ansible key under `~/.ssh/ansible-config-wizard/`, write `ansible_ssh_private_key_file` into local inventory, and either install that key automatically with a one-shot password prompt or pause with exact commands and resume guidance
 - for Linux SFTP backup destinations you control, the wizard can offer either the full deployment run or a generated prerequisite setup step that prepares backup users, SSH keys, and repository paths before deployment
