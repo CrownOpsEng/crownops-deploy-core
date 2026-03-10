@@ -12,11 +12,6 @@
       {{ lookup('ansible.builtin.file', item, errors='ignore') | default('', true) }}
       {% endfor %}
 
-- name: Load inventory group variables into localhost preflight scope
-  ansible.builtin.include_vars:
-    file: "{{ item }}"
-  loop: "{{ preflight_inventory_var_files }}"
-
 - name: Check target group population
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Inventory group ' ~ preflight_target_group ~ ' is empty. Define at least one deployment target host in inventories/prod/hosts.yml.'] }}"
@@ -84,161 +79,60 @@
     preflight_errors: "{{ preflight_errors + ['bootstrap_target_ubuntu_release must be jammy or noble. Current value: ' ~ (bootstrap_target_ubuntu_release | string) ~ '.'] }}"
   when: bootstrap_target_ubuntu_release is not defined or (bootstrap_target_ubuntu_release | string) not in ['jammy', 'noble']
 
-- name: Check HTTPS firewall path
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['ufw_allowed_tcp_public must include 443 while the Obsidian feature stack is enabled.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
-    - ufw_allowed_tcp_public is not defined or 443 not in (ufw_allowed_tcp_public | list)
-
-- name: Check Obsidian access mode
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['obsidian_access_mode must be public_https or private_mesh while the Obsidian feature stack is enabled.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) not in ['public_https', 'private_mesh']
-
 - name: Check ops user
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['ops_user is unset or invalid.'] }}"
   when: ops_user is not defined or (ops_user | string | trim) == ''
 
-- name: Check Traefik ACME email
+- name: Check required nested host and feature config roots exist
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['traefik_acme_email is unset or placeholder: ' ~ (traefik_acme_email | string) ~ '.'] }}"
+    preflight_errors: "{{ preflight_errors + ['main inventory must define nested features.obsidian_livesync, host.traefik, host.restic, and host.ufw mappings.'] }}"
   when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
-    - traefik_acme_email is not defined or '@' not in (traefik_acme_email | string) or 'example.invalid' in (traefik_acme_email | string) or 'change-me@' in (traefik_acme_email | string)
+    - features is not defined or features is not mapping
+      or features.obsidian_livesync is not defined
+      or host is not defined or host is not mapping
+      or host.traefik is not defined
+      or host.restic is not defined
+      or host.ufw is not defined
 
-- name: Check ACME DNS provider
+- name: Check removed legacy inventory variables are absent
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['acme_dns_provider is unset.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
-    - acme_dns_provider is not defined or (acme_dns_provider | string | trim) == ''
+    preflight_errors: "{{ preflight_errors + ['Legacy variable ' ~ legacy_var ~ ' is still defined. Remove the flat contract and use nested host.* / features.* settings only.'] }}"
+  loop:
+    - feature_obsidian_enabled
+    - obsidian_access_mode
+    - obsidian_base_url
+    - obsidian_cors_origins
+    - obsidian_service_subdomain
+    - private_mesh_url_strategy
+    - tailscale_tailnet_name
+    - ufw_allowed_tcp_public
+    - ufw_allowed_udp_public
+    - traefik_dir
+    - traefik_network_name
+    - traefik_acme_email
+    - traefik_certresolver_name
+    - traefik_acme_storage
+    - acme_dns_provider
+    - acme_env
+    - couchdb_dir
+    - couchdb_container_name
+    - couchdb_admin_user
+    - couchdb_admin_password
+    - couchdb_bind_host
+    - couchdb_port
+    - couchdb_vaults
+    - internal_network_name
+    - restic_enabled
+    - restic_apt_cache_valid_time
+    - restic_targets
+    - restic_backup_jobs
+    - restic_backup_contributions
+  loop_control:
+    loop_var: legacy_var
+  when: legacy_var in vars
 
-- name: Check ACME env exists
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['acme_env is empty. DNS-01 certificate issuance cannot work without provider credentials.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
-    - acme_env is not defined or (acme_env | length) == 0
-
-- name: Check ACME env placeholder values
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['acme_env still contains placeholder values. Replace all REPLACE_ME entries with real DNS provider credentials.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
-    - acme_env is defined
-    - (acme_env | to_nice_yaml) is search('REPLACE_ME')
-
-- name: Check private mesh base URL
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['obsidian_base_url must be a non-placeholder http or https URL while Obsidian is enabled in private_mesh mode.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
-    - obsidian_base_url is not defined or (obsidian_base_url | string | trim) == '' or 'example.invalid' in (obsidian_base_url | string) or not ((obsidian_base_url | string) is match('^https?://'))
-
-- name: Check Tailscale MagicDNS planning inputs
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['tailscale_tailnet_name must be set when private_mesh uses the tailscale_magicdns URL strategy.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
-    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
-    - tailscale_tailnet_name is not defined or (tailscale_tailnet_name | string | trim) == ''
-
-- name: Check Tailscale hostname format for MagicDNS planning
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['tailscale_hostname must be a DNS-safe machine name when private_mesh uses tailscale_magicdns. Use only letters, numbers, and hyphens.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
-    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
-    - tailscale_hostname is not defined or not ((tailscale_hostname | string) is match('^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'))
-
-- name: Check Tailscale tailnet input format for MagicDNS planning
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['tailscale_tailnet_name must be the tailnet name only, without the .ts.net suffix, when private_mesh uses tailscale_magicdns.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
-    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
-    - tailscale_tailnet_name is defined
-    - (tailscale_tailnet_name | string | trim) != ''
-    - (tailscale_tailnet_name | string) is search('\\.ts\\.net$')
-
-- name: Check private mesh URL for duplicated ts.net suffix
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['obsidian_base_url contains a duplicated .ts.net suffix. Review tailscale_hostname and tailscale_tailnet_name planning inputs.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
-    - obsidian_base_url is defined
-    - (obsidian_base_url | string) is search('\\.ts\\.net\\.ts\\.net')
-
-- name: Check private mesh does not expose CouchDB publicly
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['private_mesh mode must not expose CouchDB on the public firewall. Remove 5984 from ufw_allowed_tcp_public or keep CouchDB bound to a non-public interface.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
-    - ufw_allowed_tcp_public is defined
-    - 5984 in (ufw_allowed_tcp_public | list)
-
-- name: Check CouchDB admin credentials
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['couchdb_admin_user or couchdb_admin_password is unset or placeholder.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - "'couchdb_admin_user:' not in preflight_config_dump or 'couchdb_admin_password:' not in preflight_config_dump or 'couchdb_admin_password: REPLACE_ME' in preflight_config_dump"
-
-- name: Check synced vault definitions exist
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain at least one sync account definition while the Obsidian feature stack is enabled.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - "'couchdb_vaults:' not in preflight_config_dump or 'couchdb_vaults: []' in preflight_config_dump"
-
-- name: Check duplicate synced vault names
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Duplicate sync account names found in couchdb_vaults. Names must be unique.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - couchdb_vaults is defined
-    - ((couchdb_vaults | map(attribute='name') | list | unique | length) != (couchdb_vaults | map(attribute='name') | list | length))
-
-- name: Check duplicate synced vault db names
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB db_name values found in couchdb_vaults.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - couchdb_vaults is defined
-    - ((couchdb_vaults | map(attribute='db_name') | list | unique | length) != (couchdb_vaults | map(attribute='db_name') | list | length))
-
-- name: Check duplicate synced vault users
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Duplicate CouchDB user values found in couchdb_vaults.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - couchdb_vaults is defined
-    - ((couchdb_vaults | map(attribute='user') | list | unique | length) != (couchdb_vaults | map(attribute='user') | list | length))
-
-- name: Check synced vault placeholders
-  ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['One or more couchdb_vaults entries still contains placeholder password values.'] }}"
-  when:
-    - feature_obsidian_enabled | default(true) | bool
-    - couchdb_vaults is defined
-    - (couchdb_vaults | to_nice_yaml) is search('REPLACE_ME')
-
-- name: Check duplicate local workspace names
+- name: Check local markdown workspace names are unique
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['local_markdown_workspaces contains duplicate values.'] }}"
   when:
@@ -253,150 +147,277 @@
     - exports_root is defined
     - (vault_root | string) == (exports_root | string)
 
-- name: Check restic targets defined when backups are enabled
+- name: Check Obsidian feature access mode
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_enabled=true but restic_targets is empty. Define at least one enabled backup target.'] }}"
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.access_mode must be public_https or private_mesh when the feature is enabled.'] }}"
   when:
-    - restic_enabled | default(true) | bool
-    - "'restic_targets:' not in preflight_config_dump or 'restic_targets: []' in preflight_config_dump"
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | default('') | string) not in ['public_https', 'private_mesh']
 
-- name: Check restic jobs defined when backups are enabled
+- name: Check Obsidian base URL
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_enabled=true but restic_backup_jobs is empty. Define at least one logical backup job.'] }}"
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.base_url must be a non-placeholder http or https URL when Obsidian is enabled.'] }}"
   when:
-    - restic_enabled | default(true) | bool
-    - restic_backup_jobs is not defined or (restic_backup_jobs | length) == 0
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - features.obsidian_livesync.base_url is not defined
+      or (features.obsidian_livesync.base_url | string | trim) == ''
+      or 'example.invalid' in (features.obsidian_livesync.base_url | string)
+      or not ((features.obsidian_livesync.base_url | string) is match('^https?://'))
 
-- name: Check restic apt cache reuse window format
+- name: Check Obsidian CouchDB contract completeness
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_apt_cache_valid_time must be an integer greater than or equal to 0 so backup package installation uses a valid apt cache policy.'] }}"
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.couchdb requires dir, container_name, internal_network_name, bind_host, port, admin_user, admin_password, and at least one vault.'] }}"
   when:
-    - restic_enabled | default(true) | bool
-    - restic_apt_cache_valid_time is defined
-    - not ((restic_apt_cache_valid_time | string) is match('^[0-9]+$'))
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - features.obsidian_livesync.couchdb is not defined
+      or (features.obsidian_livesync.couchdb.dir | default('') | string | trim) == ''
+      or (features.obsidian_livesync.couchdb.container_name | default('') | string | trim) == ''
+      or (features.obsidian_livesync.couchdb.internal_network_name | default('') | string | trim) == ''
+      or (features.obsidian_livesync.couchdb.bind_host | default('') | string | trim) == ''
+      or (features.obsidian_livesync.couchdb.admin_user | default('') | string | trim) == ''
+      or (features.obsidian_livesync.couchdb.admin_password | default('') | string | trim) == ''
+      or (features.obsidian_livesync.couchdb.vaults | default([]) | length) == 0
+
+- name: Check duplicate Obsidian vault names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.couchdb.vaults contains duplicate name values.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - ((features.obsidian_livesync.couchdb.vaults | default([]) | map(attribute='name') | list | unique | length) != (features.obsidian_livesync.couchdb.vaults | default([]) | map(attribute='name') | list | length))
+
+- name: Check duplicate Obsidian vault database names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.couchdb.vaults contains duplicate db_name values.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - ((features.obsidian_livesync.couchdb.vaults | default([]) | map(attribute='db_name') | list | unique | length) != (features.obsidian_livesync.couchdb.vaults | default([]) | map(attribute='db_name') | list | length))
+
+- name: Check duplicate Obsidian vault users
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.couchdb.vaults contains duplicate user values.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - ((features.obsidian_livesync.couchdb.vaults | default([]) | map(attribute='user') | list | unique | length) != (features.obsidian_livesync.couchdb.vaults | default([]) | map(attribute='user') | list | length))
+
+- name: Check Obsidian vault placeholders
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.couchdb.vaults still contains placeholder values.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.couchdb.vaults | default([]) | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check public HTTPS requires host Traefik enablement
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.access_mode=public_https requires host.traefik.enabled=true.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - not (host.traefik.enabled | default(false) | bool)
+
+- name: Check public HTTPS ACME email
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.traefik.acme_email is unset or placeholder while public HTTPS ingress is required.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - host.traefik.acme_email is not defined or '@' not in (host.traefik.acme_email | string) or 'example.invalid' in (host.traefik.acme_email | string) or 'change-me@' in (host.traefik.acme_email | string)
+
+- name: Check public HTTPS DNS provider
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.traefik.dns_provider is unset while public HTTPS ingress is required.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - host.traefik.dns_provider is not defined or (host.traefik.dns_provider | string | trim) == ''
+
+- name: Check public HTTPS DNS environment
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.traefik.dns_env is empty or still contains placeholder values while public HTTPS ingress is required.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - host.traefik.dns_env is not defined
+      or (host.traefik.dns_env | length) == 0
+      or (host.traefik.dns_env | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check private mesh MagicDNS tailnet input
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.private_mesh.tailnet_name must be set to the tailnet name only when private_mesh.url_strategy=tailscale_magicdns.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'private_mesh'
+    - (features.obsidian_livesync.private_mesh.url_strategy | default('') | string) == 'tailscale_magicdns'
+    - features.obsidian_livesync.private_mesh.tailnet_name is not defined
+      or (features.obsidian_livesync.private_mesh.tailnet_name | string | trim) == ''
+      or (features.obsidian_livesync.private_mesh.tailnet_name | string) is search('\\.ts\\.net$')
+
+- name: Check Tailscale hostname format for MagicDNS planning
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_hostname must be a DNS-safe machine name when private_mesh uses tailscale_magicdns.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'private_mesh'
+    - (features.obsidian_livesync.private_mesh.url_strategy | default('') | string) == 'tailscale_magicdns'
+    - tailscale_hostname is not defined or not ((tailscale_hostname | string) is match('^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'))
+
+- name: Check private mesh base URL does not duplicate ts.net suffix
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.base_url contains a duplicated .ts.net suffix. Review tailscale_hostname and private_mesh.tailnet_name.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'private_mesh'
+    - (features.obsidian_livesync.base_url | string) is search('\\.ts\\.net\\.ts\\.net')
+
+- name: Check host Traefik manage mode
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.traefik.manage_mode must be managed or adopt_managed when Traefik is enabled.'] }}"
+  when:
+    - host.traefik.enabled | default(false) | bool
+    - (host.traefik.manage_mode | default('') | string) not in ['managed', 'adopt_managed']
+
+- name: Check host restic targets are defined when enabled
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.restic.enabled=true but host.restic.targets is empty. Define at least one enabled backup target.'] }}"
+  when:
+    - host.restic.enabled | default(false) | bool
+    - (host.restic.targets | default([]) | length) == 0
+
+- name: Check host restic jobs are defined when enabled
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.restic.enabled=true but host.restic.jobs is empty. Define at least one logical backup job.'] }}"
+  when:
+    - host.restic.enabled | default(false) | bool
+    - (host.restic.jobs | default([]) | length) == 0
+
+- name: Check host restic apt cache reuse window format
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.restic.apt_cache_valid_time must be an integer greater than or equal to 0.'] }}"
+  when:
+    - host.restic.enabled | default(false) | bool
+    - host.restic.apt_cache_valid_time is not defined or not ((host.restic.apt_cache_valid_time | string) is match('^[0-9]+$'))
 
 - name: Check duplicate restic target names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_targets contains duplicate target names.'] }}"
+    preflight_errors: "{{ preflight_errors + ['host.restic.targets contains duplicate target names.'] }}"
   when:
-    - restic_enabled | default(true) | bool
-    - restic_targets is defined
-    - ((restic_targets | map(attribute='name') | list | unique | length) != (restic_targets | map(attribute='name') | list | length))
+    - host.restic.enabled | default(false) | bool
+    - ((host.restic.targets | default([]) | map(attribute='name') | list | unique | length) != (host.restic.targets | default([]) | map(attribute='name') | list | length))
 
 - name: Check restic target naming format
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Every restic target name must be lowercase and match ^[a-z0-9][a-z0-9_-]*$. Invalid target names: ' ~ (preflight_invalid_restic_target_names | join(', ')) ~ '.'] }}"
+    preflight_errors: "{{ preflight_errors + ['Every host.restic target name must be lowercase and match ^[a-z0-9][a-z0-9_-]*$. Invalid target names: ' ~ (preflight_invalid_restic_target_names | join(', ')) ~ '.'] }}"
   vars:
     preflight_invalid_restic_target_names: >-
       {{
-        restic_targets
-        | default([])
+        host.restic.targets | default([])
         | map(attribute='name')
         | reject('match', '^[a-z0-9][a-z0-9_-]*$')
         | list
       }}
   when:
-    - restic_enabled | default(true) | bool
-    - restic_targets is defined
+    - host.restic.enabled | default(false) | bool
     - (preflight_invalid_restic_target_names | length) > 0
 
 - name: Check duplicate restic job names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_backup_jobs contains duplicate job names.'] }}"
+    preflight_errors: "{{ preflight_errors + ['host.restic.jobs contains duplicate job names.'] }}"
   when:
-    - restic_enabled | default(true) | bool
-    - restic_backup_jobs is defined
-    - ((restic_backup_jobs | map(attribute='name') | list | unique | length) != (restic_backup_jobs | map(attribute='name') | list | length))
+    - host.restic.enabled | default(false) | bool
+    - ((host.restic.jobs | default([]) | map(attribute='name') | list | unique | length) != (host.restic.jobs | default([]) | map(attribute='name') | list | length))
 
 - name: Check restic target placeholders
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_targets still contains placeholder repository or secret references.'] }}"
+    preflight_errors: "{{ preflight_errors + ['host.restic.targets still contains placeholder repository or secret references.'] }}"
   when:
-    - restic_enabled | default(true) | bool
-    - restic_targets is defined
+    - host.restic.enabled | default(false) | bool
     - >
-      ('example.invalid' in (restic_targets | to_nice_yaml))
-      or ('REPLACE_ME' in (restic_targets | to_nice_yaml))
+      ('example.invalid' in (host.restic.targets | default([]) | to_nice_yaml))
+      or ('REPLACE_ME' in (host.restic.targets | default([]) | to_nice_yaml))
 
 - name: Check restic target passwords
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Every restic target must resolve to a non-placeholder password in vault_restic_target_secrets.'] }}"
+    preflight_errors: "{{ preflight_errors + ['Every host.restic target must resolve to a non-placeholder password in vault_restic_target_secrets.'] }}"
   when:
-    - restic_enabled | default(true) | bool
+    - host.restic.enabled | default(false) | bool
     - vault_restic_target_secrets is defined
     - (vault_restic_target_secrets | to_nice_yaml) is search('REPLACE_ME')
 
+- name: Check unsupported feature-owned restic jobs remain empty
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.restic.feature_owned_jobs is intentionally unsupported in this refactor and must remain empty.'] }}"
+  when:
+    - host.restic.enabled | default(false) | bool
+    - (host.restic.feature_owned_jobs | default([]) | length) > 0
+
 - name: Check restic jobs have valid target_names
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic backup job ' ~ (item.name | default('unnamed')) ~ ' must define target_names as a non-empty list of target names.'] }}"
-  loop: "{{ restic_backup_jobs | default([]) }}"
+    preflight_errors: "{{ preflight_errors + ['host.restic job ' ~ (item.name | default('unnamed')) ~ ' must define target_names as a non-empty list of target names.'] }}"
+  loop: "{{ host.restic.jobs | default([]) }}"
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
   when:
-    - restic_enabled | default(true) | bool
+    - host.restic.enabled | default(false) | bool
     - item.target_names is not defined or item.target_names is string or item.target_names is not sequence or (item.target_names | length) == 0
 
 - name: Check restic job target references
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic backup job ' ~ (item.name | default('unnamed')) ~ ' references unknown target names: ' ~ ((item.target_names | difference(preflight_restic_target_names)) | join(', ')) ~ '.'] }}"
-  loop: "{{ restic_backup_jobs | default([]) }}"
+    preflight_errors: "{{ preflight_errors + ['host.restic job ' ~ (item.name | default('unnamed')) ~ ' references unknown target names: ' ~ ((item.target_names | difference(preflight_restic_target_names)) | join(', ')) ~ '.'] }}"
+  loop: "{{ host.restic.jobs | default([]) }}"
   loop_control:
     label: "{{ item.name | default('unnamed') }}"
   vars:
-    preflight_restic_target_names: "{{ restic_targets | default([]) | map(attribute='name') | list }}"
+    preflight_restic_target_names: "{{ host.restic.targets | default([]) | map(attribute='name') | list }}"
   when:
-    - restic_enabled | default(true) | bool
-    - restic_targets is defined
+    - host.restic.enabled | default(false) | bool
     - item.target_names is defined
     - item.target_names is sequence
     - item.target_names is not string
     - (item.target_names | length) > 0
     - (item.target_names | difference(preflight_restic_target_names) | length) > 0
 
-- name: Check restic jobs have paths or contributions
+- name: Check restic jobs select datasets
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Each restic backup job must include paths directly or receive paths through restic_backup_contributions.'] }}"
+    preflight_errors: "{{ preflight_errors + ['host.restic job ' ~ (item.name | default('unnamed')) ~ ' must select datasets via dataset_names and/or selector_tags.'] }}"
+  loop: "{{ host.restic.jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+  when:
+    - host.restic.enabled | default(false) | bool
+    - (item.dataset_names | default([]) | length) == 0
+    - (item.selector_tags | default([]) | length) == 0
+
+- name: Check restic jobs resolve at least one composed dataset
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.restic job ' ~ (item.name | default('unnamed')) ~ ' does not match any composed backup dataset.'] }}"
+  loop: "{{ host.restic.jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
   vars:
-    preflight_restic_job_names_with_contributions: "{{ restic_backup_contributions | default([]) | map(attribute='job') | list }}"
+    preflight_matching_dataset_names: >-
+      {%- set matched = [] -%}
+      {%- for dataset in platform_backup_datasets | default([]) -%}
+      {%- if dataset.name in (item.dataset_names | default([]))
+            or (((dataset.tags | default([])) | intersect(item.selector_tags | default([]))) | length) > 0 -%}
+      {%- set _ = matched.append(dataset.name) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ matched }}
   when:
-    - restic_enabled | default(true) | bool
-    - restic_backup_jobs is defined
-    - >-
-      (
-        restic_backup_jobs
-        | rejectattr('paths', 'defined')
-        | map(attribute='name')
-        | list
-      ) | difference(preflight_restic_job_names_with_contributions) | length > 0
+    - host.restic.enabled | default(false) | bool
+    - (item.dataset_names | default([]) | length) > 0 or (item.selector_tags | default([]) | length) > 0
+    - (preflight_matching_dataset_names | unique | length) == 0
 
-- name: Check restic contribution job references
+- name: Warn on broad backup dataset roots
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['restic_backup_contributions references one or more undefined jobs.'] }}"
-  when:
-    - restic_enabled | default(true) | bool
-    - restic_backup_contributions is defined
-    - >
-      (
-        restic_backup_contributions
-        | map(attribute='job')
-        | list
-        | difference(restic_backup_jobs | default([]) | map(attribute='name') | list)
-        | length
-      ) > 0
-
-- name: Warn on broad restic backup roots
-  ansible.builtin.set_fact:
-    preflight_warnings: "{{ preflight_warnings + ['restic backup paths include broad service roots (' ~ (preflight_broad_restic_paths | join(', ')) ~ '). Prefer precise durable state only, such as ' ~ (preflight_restic_precise_examples | join(', ')) ~ ', so backups do not capture rebuildable configs, exports, or package bloat.'] }}"
+    preflight_warnings: "{{ preflight_warnings + ['Composed backup datasets include broad service roots (' ~ (preflight_broad_restic_paths | join(', ')) ~ '). Prefer precise durable state only, such as ' ~ (preflight_restic_precise_examples | join(', ')) ~ ', so backups do not capture rebuildable configs, exports, or package bloat.'] }}"
   vars:
     preflight_broad_restic_path_candidates: >-
       {{
         [
-          couchdb_dir | default(''),
-          traefik_dir | default(''),
+          features.obsidian_livesync.couchdb.dir | default(''),
+          host.traefik.layout_root | default(''),
           vault_root | default(''),
-          (vault_root | default('')) ~ '/synced',
           exports_root | default(''),
-          (exports_root | default('')) ~ '/shared',
           '/srv/crownops'
         ]
         | reject('equalto', '')
@@ -406,20 +427,11 @@
     preflight_broad_restic_paths: >-
       {{
         (
-          (
-            restic_backup_jobs | default([])
-            | map(attribute='paths')
-            | select('defined')
-            | list
-            | sum(start=[])
-          )
-          + (
-            restic_backup_contributions | default([])
-            | map(attribute='paths')
-            | select('defined')
-            | list
-            | sum(start=[])
-          )
+          platform_backup_datasets | default([])
+          | map(attribute='paths')
+          | select('defined')
+          | list
+          | sum(start=[])
         )
         | select('in', preflight_broad_restic_path_candidates)
         | unique
@@ -428,20 +440,20 @@
     preflight_restic_precise_examples: >-
       {{
         [
-          (couchdb_dir | default('/opt/couchdb')) ~ '/data',
-          traefik_acme_storage | default('/opt/traefik/acme/acme.json'),
+          (features.obsidian_livesync.couchdb.dir | default('/opt/couchdb')) ~ '/data',
+          host.traefik.acme_storage_path | default('/opt/traefik/acme/acme.json'),
           (vault_root | default('/srv/crownops/vaults')) ~ '/workspaces'
         ]
       }}
   when:
-    - restic_enabled | default(true) | bool
+    - host.restic.enabled | default(false) | bool
     - (preflight_broad_restic_paths | length) > 0
 
 - name: Check restic SSH known_hosts requirements
   ansible.builtin.set_fact:
-    preflight_errors: "{{ preflight_errors + ['Each restic target that uses an SSH private key must also define ssh_known_hosts.'] }}"
+    preflight_errors: "{{ preflight_errors + ['Each host.restic target that uses an SSH private key must also define ssh_known_hosts.'] }}"
   when:
-    - restic_enabled | default(true) | bool
+    - host.restic.enabled | default(false) | bool
     - vault_restic_target_secrets is defined
     - >-
       (
@@ -451,6 +463,75 @@
         | rejectattr('value.ssh_known_hosts', 'truthy')
         | list
       ) | length > 0
+
+- name: Check host UFW baseline port format
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.ufw baseline public port lists must contain only integers.'] }}"
+  when:
+    - host.ufw.enabled | default(false) | bool
+    - >
+      (
+        (host.ufw.baseline_tcp_public | default([]) | map('string') | reject('match', '^[0-9]+$') | list | length) > 0
+      ) or (
+        (host.ufw.baseline_udp_public | default([]) | map('string') | reject('match', '^[0-9]+$') | list | length) > 0
+      )
+
+- name: Check public HTTPS route composition
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['platform_bindings did not compose an ingress route for public_https Obsidian.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - (platform_ingress_routes | default([]) | length) == 0
+
+- name: Check private mesh does not compose ingress routes
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['platform_bindings must not compose ingress routes for private_mesh Obsidian.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'private_mesh'
+    - (platform_ingress_routes | default([]) | length) > 0
+
+- name: Check composed Obsidian dataset exists
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['platform_bindings did not compose the obsidian-couchdb-data dataset while Obsidian is enabled.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - "'obsidian-couchdb-data' not in (platform_backup_datasets | default([]) | map(attribute='name') | list)"
+
+- name: Check composed Traefik dataset exists
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['platform_bindings did not compose the traefik-acme dataset while host Traefik is enabled.'] }}"
+  when:
+    - host.traefik.enabled | default(false) | bool
+    - "'traefik-acme' not in (platform_backup_datasets | default([]) | map(attribute='name') | list)"
+
+- name: Check composed HTTPS firewall request exists
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['platform_bindings did not compose an https-public UFW request for public HTTPS ingress.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - "'https-public' not in (platform_ufw_requests | default([]) | map(attribute='name') | list)"
+
+- name: Check private mesh does not expose CouchDB publicly
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['private_mesh mode must not expose CouchDB on the public firewall. Remove any public 5984 rules from host.ufw.'] }}"
+  vars:
+    preflight_all_public_ufw_ports: >-
+      {{
+        (host.ufw.baseline_tcp_public | default([]))
+        + (
+          platform_host_ufw.requests | default([])
+          | selectattr('proto', 'equalto', 'tcp')
+          | map(attribute='port')
+          | list
+        )
+      }}
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'private_mesh'
+    - 5984 in preflight_all_public_ufw_ports
 
 - name: Warn when Tailscale join is manual
   ansible.builtin.set_fact:
