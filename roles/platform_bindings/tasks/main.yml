@@ -1,0 +1,119 @@
+---
+- name: Initialize platform bindings
+  ansible.builtin.set_fact:
+    platform_ingress_routes: []
+    platform_backup_datasets:
+      - name: host-foundation
+        owner: core
+        paths:
+          - /etc/ssh
+          - /etc/fail2ban
+          - /etc/ufw
+        tags:
+          - class:host-foundation
+      - name: workspace-data
+        owner: core_layout
+        paths:
+          - "{{ vault_root }}/workspaces"
+        tags:
+          - class:application-data
+    platform_ufw_requests: []
+
+- name: Compose effective Obsidian feature contract
+  ansible.builtin.set_fact:
+    platform_obsidian_livesync: >-
+      {{
+        features.obsidian_livesync
+        | combine(
+            {
+              'ingress': (
+                (features.obsidian_livesync.ingress | default({}))
+                | combine(
+                    {
+                      'shared_network_name': (
+                        host.traefik.proxy_network_name
+                        if (
+                          (features.obsidian_livesync.access_mode | string) == 'public_https'
+                          and (host.traefik.enabled | default(false) | bool)
+                        )
+                        else ''
+                      )
+                    },
+                    recursive=True
+                  )
+              )
+            },
+            recursive=True
+          )
+      }}
+  when: features.obsidian_livesync.enabled | default(false) | bool
+
+- name: Compose Obsidian ingress route
+  ansible.builtin.set_fact:
+    platform_ingress_routes: "{{ platform_ingress_routes + [platform_obsidian_route] }}"
+  vars:
+    platform_obsidian_route:
+      name: "{{ features.obsidian_livesync.ingress.route_name }}"
+      rule: "Host(`{{ features.obsidian_livesync.base_url | regex_replace('^https?://([^/:]+).*$','\\1') }}`)"
+      service_url: "http://{{ features.obsidian_livesync.couchdb.container_name }}:5984"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - host.traefik.enabled | default(false) | bool
+
+- name: Compose Obsidian backup dataset
+  ansible.builtin.set_fact:
+    platform_backup_datasets: "{{ platform_backup_datasets + [platform_obsidian_dataset] }}"
+  vars:
+    platform_obsidian_dataset:
+      name: obsidian-couchdb-data
+      owner: obsidian_livesync
+      paths:
+        - "{{ features.obsidian_livesync.couchdb.dir }}/data"
+      tags:
+        - class:application-data
+        - feature:obsidian-livesync
+      quiesce:
+        pre_commands:
+          - "docker compose -f {{ features.obsidian_livesync.couchdb.dir }}/docker-compose.yml stop couchdb"
+        post_commands:
+          - "docker compose -f {{ features.obsidian_livesync.couchdb.dir }}/docker-compose.yml start couchdb"
+  when: features.obsidian_livesync.enabled | default(false) | bool
+
+- name: Compose Traefik ACME backup dataset
+  ansible.builtin.set_fact:
+    platform_backup_datasets: "{{ platform_backup_datasets + [platform_traefik_dataset] }}"
+  vars:
+    platform_traefik_dataset:
+      name: traefik-acme
+      owner: host_traefik
+      paths:
+        - "{{ host.traefik.acme_storage_path }}"
+      tags:
+        - class:host-foundation
+        - host:ingress
+  when: host.traefik.enabled | default(false) | bool
+
+- name: Compose managed public HTTPS firewall request
+  ansible.builtin.set_fact:
+    platform_ufw_requests: "{{ platform_ufw_requests + [platform_https_request] }}"
+  vars:
+    platform_https_request:
+      name: https-public
+      port: "{{ host.traefik.https_port | int }}"
+      proto: tcp
+      from: any
+      comment: crownops host ingress https
+  when: (platform_ingress_routes | length) > 0
+
+- name: Compose effective host Traefik contract
+  ansible.builtin.set_fact:
+    platform_host_traefik: "{{ host.traefik | combine({'routes': platform_ingress_routes}, recursive=True) }}"
+
+- name: Compose effective host restic contract
+  ansible.builtin.set_fact:
+    platform_host_restic: "{{ host.restic | combine({'datasets': platform_backup_datasets}, recursive=True) }}"
+
+- name: Compose effective host UFW contract
+  ansible.builtin.set_fact:
+    platform_host_ufw: "{{ host.ufw | combine({'requests': (host.ufw.requests | default([])) + platform_ufw_requests}, recursive=True) }}"
