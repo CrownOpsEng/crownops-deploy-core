@@ -164,6 +164,16 @@
       or 'example.invalid' in (features.obsidian_livesync.base_url | string)
       or not ((features.obsidian_livesync.base_url | string) is match('^https?://'))
 
+- name: Check Obsidian ingress route name
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.ingress.route_name must be a DNS-safe Traefik route identifier when public_https is enabled.'] }}"
+  when:
+    - features.obsidian_livesync.enabled | default(false) | bool
+    - (features.obsidian_livesync.access_mode | string) == 'public_https'
+    - features.obsidian_livesync.ingress is not defined
+      or (features.obsidian_livesync.ingress.route_name | default('') | string | trim) == ''
+      or not ((features.obsidian_livesync.ingress.route_name | string) is match('^[a-z0-9][a-z0-9_-]*$'))
+
 - name: Check Obsidian CouchDB contract completeness
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['features.obsidian_livesync.couchdb requires dir, container_name, internal_network_name, bind_host, port, admin_user, admin_password, and at least one vault.'] }}"

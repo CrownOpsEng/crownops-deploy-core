@@ -315,8 +315,6 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
 
     target_names = [item["name"] for item in restic_targets]
     host_ufw_baseline_tcp_public = [int(port) for port in copy.deepcopy(data.get("ufw_allowed_tcp_public", []) or [])]
-    if obsidian_enabled and obsidian_access_mode == "public_https" and 443 not in host_ufw_baseline_tcp_public:
-        host_ufw_baseline_tcp_public.append(443)
 
     host_restic_jobs: list[dict[str, Any]] = []
     if restic_enabled:

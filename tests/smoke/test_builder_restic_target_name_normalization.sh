@@ -95,6 +95,7 @@ obsidian_result = build_crownops_deploy_core(
         "traefik_acme_email": "ops@example.com",
         "acme_dns_provider": "cloudflare",
         "acme_env": {"CF_DNS_API_TOKEN": "token"},
+        "ufw_allowed_tcp_public": [22],
         "restic_enabled": True,
         "restic_targets_input": [
             {
@@ -116,6 +117,11 @@ if obsidian_job_targets != [["primary"], ["primary"]]:
 
 if obsidian_result["features"]["obsidian_livesync"]["ingress"]["route_name"] != "obsidian-couchdb":
     raise SystemExit("expected obsidian ingress route name in nested feature contract")
+
+if obsidian_result["host"]["ufw"]["baseline_tcp_public"] != [22]:
+    raise SystemExit(
+        f"expected builder baseline firewall ports to stay host-owned only, got {obsidian_result['host']['ufw']['baseline_tcp_public']!r}"
+    )
 
 print("builder restic target name normalization smoke test passed")
 PY

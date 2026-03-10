@@ -74,6 +74,9 @@ jobs:
       - name: Smoke test unsupported feature-owned jobs validation
         run: bash tests/smoke/test_preflight_feature_owned_jobs_rejected.sh
 
+      - name: Smoke test Obsidian route name validation
+        run: bash tests/smoke/test_preflight_obsidian_route_name_validation.sh
+
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 

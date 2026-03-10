@@ -30,6 +30,11 @@
                 (features.obsidian_livesync.ingress | default({}))
                 | combine(
                     {
+                      'route_name': (
+                        features.obsidian_livesync.ingress.route_name
+                        | default('')
+                        | string
+                      ),
                       'shared_network_name': (
                         host.traefik.proxy_network_name
                         if (
@@ -53,13 +58,14 @@
     platform_ingress_routes: "{{ platform_ingress_routes + [platform_obsidian_route] }}"
   vars:
     platform_obsidian_route:
-      name: "{{ features.obsidian_livesync.ingress.route_name }}"
-      rule: "Host(`{{ features.obsidian_livesync.base_url | regex_replace('^https?://([^/:]+).*$','\\1') }}`)"
-      service_url: "http://{{ features.obsidian_livesync.couchdb.container_name }}:5984"
+      name: "{{ platform_obsidian_livesync.ingress.route_name }}"
+      rule: "Host(`{{ platform_obsidian_livesync.base_url | regex_replace('^https?://([^/:]+).*$','\\1') }}`)"
+      service_url: "http://{{ platform_obsidian_livesync.couchdb.container_name }}:{{ platform_obsidian_livesync.couchdb.port }}"
   when:
     - features.obsidian_livesync.enabled | default(false) | bool
     - (features.obsidian_livesync.access_mode | string) == 'public_https'
     - host.traefik.enabled | default(false) | bool
+    - (platform_obsidian_livesync.ingress.route_name | string | trim) != ''
 
 - name: Compose Obsidian backup dataset
   ansible.builtin.set_fact:
