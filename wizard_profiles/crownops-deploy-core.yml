@@ -456,7 +456,7 @@ post_write_actions:
       Repository path: {{ action_item.repository_path }}
       {% if action_item.bootstrap_use_sudo %}Sudo is enabled for this setup run.{% else %}Sudo is disabled for this setup run.{% endif %}
     command_template: "{{ action_item.command }}"
-    prompt: How should the wizard handle this backup destination?
+    prompt: How should the wizard hand off this backup destination setup?
 outputs:
   - id: hosts
     path: inventories/prod/hosts.yml
