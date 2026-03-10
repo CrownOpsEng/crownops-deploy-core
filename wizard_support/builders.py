@@ -8,6 +8,8 @@ from typing import Any
 
 from ansible_config_wizard.generators import fingerprint, generate_value
 
+_RESTIC_TARGET_KEYPAIR_CACHE: dict[tuple[str, str], dict[str, str]] = {}
+
 
 def sanitize_identifier(value: str) -> str:
     sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
@@ -53,6 +55,16 @@ def build_backup_target_bootstrap_command(
     if item.get("bootstrap_ssh_private_key_file"):
         parts.extend(["--private-key-file", item["bootstrap_ssh_private_key_file"]])
     return " ".join(shlex.quote(part) for part in parts)
+
+
+def cached_restic_target_keypair(data: dict[str, Any], target_key: str) -> dict[str, str]:
+    run_scope = str(data.get("wizard_run_dir") or data.get("repo_root") or "")
+    cache_key = (run_scope, target_key)
+    keypair = _RESTIC_TARGET_KEYPAIR_CACHE.get(cache_key)
+    if keypair is None:
+        keypair = generate_value("ed25519_keypair")
+        _RESTIC_TARGET_KEYPAIR_CACHE[cache_key] = copy.deepcopy(keypair)
+    return copy.deepcopy(keypair)
 
 
 def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
@@ -144,7 +156,7 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             repository = item["local_path"]
 
         if target_mode == "sftp_ssh" and item.get("generate_ssh_key", False):
-            keypair = generate_value("ed25519_keypair")
+            keypair = cached_restic_target_keypair(data, key)
             ssh_private_key = keypair["private_key"]
             ssh_public_key = keypair["public_key"]
             generated_ssh_public_keys.append(
