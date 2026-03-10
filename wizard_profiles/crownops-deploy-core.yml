@@ -103,6 +103,7 @@ sections:
       - id: additional_ssh_pubkeys
         label: Additional authorized SSH public keys (comma-separated)
         type: list
+        help: Optional. Add any other public keys that should be trusted on day one besides the managed Ansible key the wizard already handles for you.
         when: "ssh_setup_mode == 'generate_managed_key'"
       - id: ssh_pubkeys
         label: Authorized SSH public keys (comma-separated)
@@ -118,13 +119,12 @@ sections:
         public_key_path_template: "{{ managed_ssh_keypair.public_key_path }}"
         private_key_path_template: "{{ managed_ssh_keypair.private_key_path }}"
         message_template: |
-          Your managed Ansible SSH key is ready for {{ host_name }}.
+          Managed SSH key ready for {{ host_name }}.
 
-          Fingerprint:
-            {{ managed_ssh_keypair.fingerprint }}
+          Fingerprint: {{ managed_ssh_keypair.fingerprint }}
 
-          The wizard can install it for you now with one password prompt, or it can step aside and show the manual path if you prefer.
-          Nothing about that password is written to inventory, logs, or resume state.
+          The automatic path uses one password prompt on your machine, installs the key, and verifies direct login.
+          The password is only used for that local install step. It is not written to inventory, logs, or resume state.
         prompt: How would you like to finish SSH access setup?
   - id: general
     title: General Deployment Settings
