@@ -316,6 +316,37 @@
     - preflight_host_traefik.enabled | default(false) | bool
     - (preflight_host_traefik.manage_mode | default('') | string) not in ['managed', 'adopt_managed']
 
+- name: Check host Traefik required contract fields
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['host.traefik.enabled=true requires layout_root, static_config_path, dynamic_config_root, dynamic_routes_dir, acme_storage_path, proxy_network_name, container_name, certificate_resolver_name, acme_email, dns_provider, and dns_env.'] }}"
+  when:
+    - preflight_host_traefik.enabled | default(false) | bool
+    - (preflight_host_traefik.layout_root | default('') | string | trim) == ''
+      or (preflight_host_traefik.static_config_path | default('') | string | trim) == ''
+      or (preflight_host_traefik.dynamic_config_root | default('') | string | trim) == ''
+      or (preflight_host_traefik.dynamic_routes_dir | default('') | string | trim) == ''
+      or (preflight_host_traefik.acme_storage_path | default('') | string | trim) == ''
+      or (preflight_host_traefik.proxy_network_name | default('') | string | trim) == ''
+      or (preflight_host_traefik.container_name | default('') | string | trim) == ''
+      or (preflight_host_traefik.certificate_resolver_name | default('') | string | trim) == ''
+      or (preflight_host_traefik.acme_email | default('') | string | trim) == ''
+      or (preflight_host_traefik.dns_provider | default('') | string | trim) == ''
+      or (preflight_host_traefik.dns_env | default({}) | length) == 0
+
+- name: Check host Traefik route definitions
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Every effective host.traefik route must define a DNS-safe name, a rule, and a service_url. When entrypoints are set explicitly they must be non-empty. Invalid route: ' ~ (item.name | default('unnamed')) ~ '.'] }}"
+  loop: "{{ platform_host_traefik.routes | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+  when:
+    - preflight_host_traefik.enabled | default(false) | bool
+    - (item.name | default('') | string | trim) == ''
+      or not ((item.name | string) is match('^[a-z0-9][a-z0-9_-]*$'))
+      or (item.rule | default('') | string | trim) == ''
+      or (item.service_url | default('') | string | trim) == ''
+      or (item.entrypoints is defined and ((item.entrypoints | list | length) == 0))
+
 - name: Check duplicate effective Traefik route names
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['platform_bindings produced duplicate Traefik route names across host.traefik.routes and composed feature routes.'] }}"

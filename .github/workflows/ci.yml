@@ -93,6 +93,9 @@ jobs:
       - name: Smoke test platform bindings preserve host extensions
         run: bash tests/smoke/test_platform_bindings_host_extensions.sh
 
+      - name: Smoke test host Traefik preflight contract validation
+        run: bash tests/smoke/test_preflight_host_traefik_contract_validation.sh
+
       - name: Smoke test builder restic target normalization
         run: bash tests/smoke/test_builder_restic_target_name_normalization.sh
 
