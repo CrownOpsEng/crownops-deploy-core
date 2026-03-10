@@ -4,6 +4,15 @@ preflight_write_local_report: true
 preflight_local_report_dir: "{{ playbook_dir }}/../reports"
 preflight_local_report_file: "preflight-{{ preflight_target_group }}.txt"
 preflight_target_group: core_hosts
+preflight_inventory_var_files:
+  - "{{ playbook_dir }}/../inventories/prod/group_vars/all/main.yml"
+  - "{{ playbook_dir }}/../inventories/prod/group_vars/all/vault.yml"
+  - "{{ playbook_dir }}/../inventories/prod/group_vars/core_hosts/main.yml"
+preflight_inventory_scan_files:
+  - "{{ playbook_dir }}/../inventories/prod/hosts.yml"
+  - "{{ playbook_dir }}/../inventories/prod/group_vars/all/main.yml"
+  - "{{ playbook_dir }}/../inventories/prod/group_vars/all/vault.yml"
+  - "{{ playbook_dir }}/../inventories/prod/group_vars/core_hosts/main.yml"
 preflight_placeholder_patterns:
   - REPLACE_ME
   - example.invalid

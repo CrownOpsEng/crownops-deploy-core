@@ -189,7 +189,7 @@ phases:
               kind: optional_prompt
           - id: tailscale_tags
             label: Tailscale tags (comma-separated)
-            help: Optional tailnet tags for policy and grouping.
+            help: Optional tailnet tags for policy and grouping. Use the full tag name with the tag: prefix, for example tag:core.
             type: list
             default: []
           - id: obsidian_service_subdomain

@@ -117,6 +117,7 @@ restic_backup_contributions:
 
 tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
 tailscale_hostname: core-01
+# Use full Tailscale tag names when set, for example: [tag:core]
 tailscale_tags: []
 
 lockdown_enabled: false

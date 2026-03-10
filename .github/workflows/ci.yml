@@ -39,6 +39,9 @@ jobs:
       - name: Smoke test preflight placeholder validation
         run: bash tests/smoke/test_preflight_placeholder_scan.sh
 
+      - name: Smoke test Tailscale tag validation
+        run: bash tests/smoke/test_preflight_tailscale_tag_validation.sh
+
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 
