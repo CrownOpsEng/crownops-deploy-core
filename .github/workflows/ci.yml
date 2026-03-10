@@ -42,6 +42,9 @@ jobs:
       - name: Smoke test Tailscale tag validation
         run: bash tests/smoke/test_preflight_tailscale_tag_validation.sh
 
+      - name: Smoke test builder restic target normalization
+        run: bash tests/smoke/test_builder_restic_target_name_normalization.sh
+
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 

@@ -206,7 +206,8 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
 
         restic_targets.append(
             {
-                "name": item["name"],
+                "name": key,
+                "display_name": item["name"],
                 "repository": repository,
                 "password_reference": f"{{{{ vault_restic_target_secrets.{key}.password }}}}",
                 "ssh_private_key_reference": f"{{{{ vault_restic_target_secrets.{key}.ssh_private_key | default('') }}}}",
