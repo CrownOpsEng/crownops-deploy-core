@@ -53,8 +53,8 @@ This installs:
 - HTTPS certificate issued successfully
 - CouchDB reachable through Traefik when Obsidian is enabled
 - Android Obsidian LiveSync works for your vault
-- restic backup to the primary target works
-- restic backup to the secondary target works when reachable
+- every required backup job runs successfully to its configured target set
+- at least one restore path has been tested for the highest-value data job
 
 ## 8. Run staged SSH lockdown after Tailscale access is confirmed
 

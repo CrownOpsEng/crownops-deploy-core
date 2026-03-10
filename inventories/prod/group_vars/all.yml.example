@@ -59,19 +59,20 @@ local_markdown_workspaces:
   - operations
   - scratch
 
+restic_enabled: true
 restic_targets:
-  - name: laptop
-    repository: sftp:backup@laptop.example.invalid:/srv/restic/deploy-core
-    password: "{{ vault_restic_target_secrets.laptop.password }}"
-    ssh_private_key: "{{ vault_restic_target_secrets.laptop.ssh_private_key | default('') }}"
-    ssh_known_hosts: "{{ vault_restic_target_secrets.laptop.ssh_known_hosts | default('') }}"
-    environment: "{{ vault_restic_target_secrets.laptop.environment | default({}) }}"
-  - name: secondary-vps
+  - name: primary
+    repository: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
+    password: "{{ vault_restic_target_secrets.primary.password }}"
+    ssh_private_key: "{{ vault_restic_target_secrets.primary.ssh_private_key | default('') }}"
+    ssh_known_hosts: "{{ vault_restic_target_secrets.primary.ssh_known_hosts | default('') }}"
+    environment: "{{ vault_restic_target_secrets.primary.environment | default({}) }}"
+  - name: secondary
     repository: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
-    password: "{{ vault_restic_target_secrets.secondary_vps.password }}"
-    ssh_private_key: "{{ vault_restic_target_secrets.secondary_vps.ssh_private_key | default('') }}"
-    ssh_known_hosts: "{{ vault_restic_target_secrets.secondary_vps.ssh_known_hosts | default('') }}"
-    environment: "{{ vault_restic_target_secrets.secondary_vps.environment | default({}) }}"
+    password: "{{ vault_restic_target_secrets.secondary.password }}"
+    ssh_private_key: "{{ vault_restic_target_secrets.secondary.ssh_private_key | default('') }}"
+    ssh_known_hosts: "{{ vault_restic_target_secrets.secondary.ssh_known_hosts | default('') }}"
+    environment: "{{ vault_restic_target_secrets.secondary.environment | default({}) }}"
 
 restic_backup_jobs:
   - name: host-foundation
@@ -79,11 +80,13 @@ restic_backup_jobs:
       - /etc/ssh
       - /etc/fail2ban
       - /etc/ufw
-    target_names: [laptop, secondary-vps]
-    tags: [profile:stateful-app, class:host]
+    target_names: [primary, secondary]
+    tags:
+      - profile:stateful-app
+      - class:host
   - name: application-data
     paths: []
-    target_names: [laptop, secondary-vps]
+    target_names: [primary, secondary]
     backup_schedule: "*-*-* 03:30:00"
     backup_randomized_delay: 20m
     maintenance_schedule: "Sun *-*-* 05:30:00"
@@ -91,13 +94,16 @@ restic_backup_jobs:
     retention_daily: 14
     retention_weekly: 8
     retention_monthly: 6
-    tags: [profile:stateful-app, class:data]
+    tags:
+      - profile:stateful-app
+      - class:data
 
 restic_backup_contributions:
   - job: host-foundation
     paths:
       - /opt/traefik
-    tags: [feature:edge-proxy]
+    tags:
+      - feature:edge-proxy
   - job: application-data
     paths:
       - /opt/couchdb
@@ -106,7 +112,8 @@ restic_backup_contributions:
       - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
     post_commands:
       - "docker compose -f /opt/couchdb/docker-compose.yml start couchdb"
-    tags: [feature:obsidian-livesync]
+    tags:
+      - feature:obsidian-livesync
 
 tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
 tailscale_hostname: core-01
