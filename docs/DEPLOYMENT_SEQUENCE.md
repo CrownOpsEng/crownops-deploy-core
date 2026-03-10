@@ -1,12 +1,33 @@
 # Deployment Sequence
 
-## 1. Fill variables and secrets
+## 1. Run the guided setup flow
 
-First run:
+Preferred path:
 
-- `./scripts/init-local-config.sh`
+- `./scripts/setup.sh`
 
-Then update:
+The guided stage order is:
+
+1. configuration and review
+2. vault password strategy
+3. encrypt or re-encrypt `inventories/prod/group_vars/vault.yml`
+4. collection install
+5. preflight
+6. bootstrap
+7. site deploy
+8. backup setup
+9. optional SSH lockdown
+
+The wizard makes each stage explicit, so configure-only, configure-plus-preflight, and full setup are all first-class paths.
+
+## 2. Lower-level phase runners
+
+When you need direct control instead of the wizard-owned stages:
+
+- `./scripts/deploy.sh`
+- `./scripts/ssh-lockdown.sh`
+
+The generated config still lives in:
 
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
@@ -19,7 +40,7 @@ Important:
 - keep `ansible_user` as the steady-state operator account Ansible should use after bootstrap, usually `deploy`
 - set `bootstrap_target_ubuntu_release` to `jammy` for Ubuntu 22.04 or `noble` for Ubuntu 24.04
 
-## 2. Install collections
+## 3. Install collections
 
 `./scripts/install-collections.sh`
 
@@ -28,23 +49,23 @@ This installs:
 - `crownops.deploy_base`
 - `crownops.deploy_services`
 
-## 3. Run preflight
+## 4. Run preflight
 
 `ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml`
 
-## 4. Bootstrap the fresh host
+## 5. Bootstrap the fresh host
 
 `ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml`
 
-## 5. Deploy enabled features
+## 6. Deploy enabled features
 
 `ansible-playbook -i inventories/prod/hosts.yml playbooks/site.yml`
 
-## 6. Configure backup jobs
+## 7. Configure backup jobs
 
 `ansible-playbook -i inventories/prod/hosts.yml playbooks/backup.yml`
 
-## 7. Validate manually
+## 8. Validate manually
 
 - SSH access works
 - Docker works
@@ -56,13 +77,13 @@ This installs:
 - every required backup job runs successfully to its configured target set
 - at least one restore path has been tested for the highest-value data job
 
-## 8. Run staged SSH lockdown after Tailscale access is confirmed
+## 9. Run staged SSH lockdown after Tailscale access is confirmed
 
 Validation-only phase:
-`./scripts/lockdown.sh --phase1-only`
+`./scripts/ssh-lockdown.sh --phase1-only`
 
 Restrictive phase:
-`./scripts/lockdown.sh --confirm`
+`./scripts/ssh-lockdown.sh --confirm`
 
 This phase:
 
@@ -71,6 +92,6 @@ This phase:
 - verifies `tailscale0`, `tailscale status --json`, and a Tailscale IPv4 address before broad SSH removal
 - allows SSH on `tailscale0` or configured CIDRs first, then removes public SSH when `lockdown_disable_public_ssh` is enabled
 
-## 9. Handoff synced vaults
+## 10. Handoff synced vaults
 
 Each user should complete or rotate their final LiveSync encryption passphrase.

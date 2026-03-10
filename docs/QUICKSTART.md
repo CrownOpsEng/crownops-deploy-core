@@ -19,13 +19,12 @@ VPS/
 - `crownops-deploy-core` is the site deployment repo with inventory, wrappers, and operator docs
 - `crownops-deploy-edge` is a separate deployment repo for edge services, not part of the core inventory path
 
-## One-command path
+## Wizard-first path
 
-The preferred operator entrypoint is:
+The primary operator entrypoint is:
 
 ```bash
-./scripts/configure.sh
-./scripts/deploy.sh
+./scripts/setup.sh
 ```
 
 For local development in this workspace, keep the shared wizard repo as a sibling checkout:
@@ -36,7 +35,7 @@ VPS/
   crownops-deploy-core/
 ```
 
-`./scripts/configure.sh` will use the sibling repo automatically when present. In other environments it can also run an installed wizard binary or a path supplied through `ANSIBLE_CONFIG_WIZARD_PROJECT`.
+`./scripts/setup.sh` will use the sibling repo automatically when present. In other environments it can also run an installed wizard binary or a path supplied through `ANSIBLE_CONFIG_WIZARD_PROJECT`.
 
 When this repo is developed in a multi-checkout workspace, `./scripts/install-collections.sh` also prefers sibling `crownops-deploy-base/` and `crownops-deploy-services/` checkouts before falling back to the remote default branches. Set `CROWNOPS_BASE_COLLECTION_SOURCE` or `CROWNOPS_SERVICES_COLLECTION_SOURCE` to override that resolution explicitly.
 
@@ -51,15 +50,12 @@ It will:
 - write inventory, non-secret settings, and local secret material
 - optionally write a sensitive details file
 - optionally write a sanitized audit log
-- optionally encrypt `inventories/prod/group_vars/vault.yml`
+- guide vault password strategy before any deployment stage runs
+- optionally encrypt or re-encrypt `inventories/prod/group_vars/vault.yml`
 - install required collections from GitHub
-- run preflight
-- bootstrap a brand new host when needed
-- deploy enabled features
-- configure backup jobs
-- optionally run the staged SSH lockdown phase when you pass `--enable-lockdown`
+- optionally run preflight, bootstrap, site deploy, backup setup, and SSH lockdown as explicit wizard stages
 
-By default it prompts before each phase. Use `--yes` for unattended execution.
+Use `./scripts/deploy.sh` only when you want the lower-level deployment runner directly, and `./scripts/ssh-lockdown.sh` only when you want the lower-level hardening runner directly.
 
 ## Minimum target requirements
 
@@ -92,7 +88,7 @@ Tracked templates:
 - `inventories/prod/group_vars/core_hosts.yml.example`
 - `inventories/prod/group_vars/vault.yml.example`
 
-Local working files created by `./scripts/configure.sh`:
+Local working files created by `./scripts/setup.sh`:
 
 - `inventories/prod/hosts.yml`
 - `inventories/prod/group_vars/all.yml`
@@ -123,14 +119,14 @@ Notes:
 
 - when the wizard manages an SSH key for you, it stores that long-term key under `~/.ssh/ansible-config-wizard/<repo>/`, points local inventory at it with `ansible_ssh_private_key_file`, and pauses before the rest of the questions so you can install the public key on the host and verify access
 - the automatic managed-key install path disables agent-based key offers so it avoids the common `Too many authentication failures` failure mode caused by clients offering every key from `ssh-agent`
-- resume a paused run with `./scripts/configure.sh --answers-file <saved-state.yml>`
+- resume a paused run with `./scripts/setup.sh --answers-file <saved-state.yml>`
 - after a successful resumed run, the wizard best-effort securely deletes its own temporary resume-state file
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
-- if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/lockdown.sh --confirm` after confirming SSH over Tailscale works
+- if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/ssh-lockdown.sh --confirm` after confirming SSH over Tailscale works
 - SFTP backup transport supports SSH keys on a per-target basis by storing `ssh_private_key` and `ssh_known_hosts` under each `restic_targets` entry, but the wizard now asks for a local `ssh_private_key_file` path so the key itself does not have to be pasted into the terminal or resume state
 - the wizard can guide SFTP backup targets by asking for host, user, path, and port, then deriving the restic repository URL and attempting `ssh-keyscan` automatically
-- for Linux backup destinations you control, the wizard can hand off either to the full `./scripts/deploy.sh` flow or to a generated prerequisite setup script that prepares backup users, SSH keys, and repository paths first
-- staged SSH lockdown is two-phase: `--enable-lockdown` runs the phase, `--confirm-lockdown` is required before public SSH can actually be removed
+- for Linux backup destinations you control, the wizard can still generate a prerequisite setup script that prepares backup users, SSH keys, and repository paths first
+- staged SSH lockdown is two-phase: `./scripts/ssh-lockdown.sh --phase1-only` validates while preserving public SSH, and `./scripts/ssh-lockdown.sh --confirm` enables the restrictive path
 - break-glass file `lockdown_break_glass_file` short-circuits restrictive changes if recovery is needed
 
 ## Secrets
@@ -144,16 +140,16 @@ Recommended split:
 
 ## Manual phase commands
 
-If you need explicit control instead of the wrapper:
+If you need explicit control instead of the wizard-owned stages:
 
 ```bash
-./scripts/configure.sh
+./scripts/deploy.sh
 ./scripts/install-collections.sh
 ansible-playbook -i inventories/prod/hosts.yml playbooks/preflight.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/bootstrap.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/site.yml
 ansible-playbook -i inventories/prod/hosts.yml playbooks/backup.yml
-ansible-playbook -i inventories/prod/hosts.yml playbooks/lockdown.yml -e lockdown_enabled=true -e lockdown_confirmed=true
+./scripts/ssh-lockdown.sh --confirm
 ```
 
 ## Feature model

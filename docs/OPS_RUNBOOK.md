@@ -2,7 +2,10 @@
 
 ## Core commands
 
-Preferred wrapper:
+Primary interactive path:
+`./scripts/setup.sh`
+
+Lower-level deployment runner:
 `./scripts/deploy.sh`
 
 Collection install only:
@@ -18,10 +21,10 @@ Deploy backup jobs:
 `ansible-playbook playbooks/backup.yml`
 
 Lock down public SSH after Tailscale validation:
-`./scripts/lockdown.sh --confirm`
+`./scripts/ssh-lockdown.sh --confirm`
 
 Validation-only lockdown phase:
-`./scripts/lockdown.sh --phase1-only`
+`./scripts/ssh-lockdown.sh --phase1-only`
 
 ## Manual checks
 

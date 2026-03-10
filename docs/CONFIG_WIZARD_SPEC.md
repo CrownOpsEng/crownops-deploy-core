@@ -283,7 +283,7 @@ The operator record screen must be separate from the sanitized log.
 
 Purpose:
 
-- optional operator handoff or break-glass record
+- optional operator record or break-glass record
 
 Rules:
 
@@ -344,9 +344,11 @@ It must not silently overwrite existing secrets.
 
 Planned repo integration:
 
-- `scripts/configure.sh` becomes the preferred operator entrypoint
+- `scripts/setup.sh` becomes the preferred operator entrypoint
 - `scripts/init-local-config.sh` remains as a simple compatibility scaffold
-- `scripts/deploy.sh` should detect missing config and point operators to the wizard
+- `scripts/deploy.sh` remains the lower-level deployment runner
+- `scripts/ssh-lockdown.sh` remains the lower-level SSH hardening runner
+- the wizard owns the interactive stage model instead of handing off to another interactive peer UI
 - preflight remains the validation gate after config generation
 
 The wizard should emit the same variable shapes currently expected by:
