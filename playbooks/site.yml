@@ -1,2 +1,23 @@
 ---
-- import_playbook: features/obsidian.yml
+- name: Converge site features and shared host capabilities
+  hosts: core_hosts
+  become: true
+  gather_facts: false
+  roles:
+    - role: platform_bindings
+      tags: [platform, compose]
+    - role: crownops.deploy_services.obsidian_livesync
+      vars:
+        obsidian_livesync: "{{ platform_obsidian_livesync }}"
+      when: features.obsidian_livesync.enabled | default(false) | bool
+      tags: [feature, obsidian, services]
+    - role: crownops.deploy_services.host_traefik
+      vars:
+        host_traefik: "{{ platform_host_traefik }}"
+      when: host.traefik.enabled | default(false) | bool
+      tags: [host, traefik, ingress]
+    - role: crownops.deploy_base.host_ufw
+      vars:
+        host_ufw: "{{ platform_host_ufw }}"
+      when: host.ufw.enabled | default(false) | bool
+      tags: [host, ufw, firewall]

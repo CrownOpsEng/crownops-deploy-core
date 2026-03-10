@@ -60,6 +60,9 @@ raw = {
 first = build_crownops_deploy_core(raw)
 second = build_crownops_deploy_core(raw)
 
+if "feature_obsidian_enabled" in first or "restic_targets" in first:
+    raise SystemExit("builder should not expose removed flat inventory keys in rendered context")
+
 if counter["value"] != 2:
     raise SystemExit(f"expected two generated passphrases, got {counter['value']}")
 
@@ -96,6 +99,14 @@ for key, value in {
 }.items():
     if settings.get(key) != value:
         raise SystemExit(f"unexpected secure default {key}: {settings.get(key)!r}")
+
+obsidian_config = first["features"]["obsidian_livesync"]
+if not obsidian_config["enabled"]:
+    raise SystemExit("expected obsidian feature config to stay enabled")
+if obsidian_config["private_mesh"]["url_strategy"] != "tailscale_magicdns":
+    raise SystemExit(f"unexpected private mesh strategy: {obsidian_config['private_mesh']['url_strategy']!r}")
+if obsidian_config["base_url"] != "http://core.example.ts.net:5984":
+    raise SystemExit(f"unexpected nested obsidian base URL: {obsidian_config['base_url']!r}")
 
 print("builder obsidian setup URI generation smoke test passed")
 PY

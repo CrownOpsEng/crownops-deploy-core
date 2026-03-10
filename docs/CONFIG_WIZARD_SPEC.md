@@ -174,7 +174,7 @@ label: CouchDB admin password
 type: secret
 stage: features
 required: true
-when: feature_obsidian_enabled == true
+when: features.obsidian_livesync.enabled == true
 default: null
 target:
   file: inventories/prod/group_vars/all/vault.yml

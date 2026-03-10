@@ -35,8 +35,42 @@ jobs:
           umask 177
           printf 'ci-test-only\n' > .vault_pass
 
+      - name: Stage matching provider collection branches
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          clone_matching_branch() {
+            local repo="$1"
+            local dest="$2"
+            local remote="https://x-access-token:${GITHUB_TOKEN}@github.com/CrownOpsEng/${repo}.git"
+
+            if git ls-remote --exit-code --heads "${remote}" "${GITHUB_HEAD_REF}" >/dev/null 2>&1; then
+              git clone --depth 1 --branch "${GITHUB_HEAD_REF}" "${remote}" "${dest}"
+            else
+              echo "No matching ${GITHUB_HEAD_REF} branch in ${repo}; using the default collection source."
+            fi
+          }
+
+          mkdir -p .deps
+          clone_matching_branch crownops-deploy-base .deps/crownops-deploy-base
+          clone_matching_branch crownops-deploy-services .deps/crownops-deploy-services
+
       - name: Install collections
-        run: ./scripts/install-collections.sh
+        run: |
+          set -euo pipefail
+
+          if [[ -f "${GITHUB_WORKSPACE}/.deps/crownops-deploy-base/galaxy.yml" ]]; then
+            export CROWNOPS_BASE_COLLECTION_SOURCE="${GITHUB_WORKSPACE}/.deps/crownops-deploy-base"
+          fi
+
+          if [[ -f "${GITHUB_WORKSPACE}/.deps/crownops-deploy-services/galaxy.yml" ]]; then
+            export CROWNOPS_SERVICES_COLLECTION_SOURCE="${GITHUB_WORKSPACE}/.deps/crownops-deploy-services"
+          fi
+
+          ./scripts/install-collections.sh
 
       - name: Syntax check preflight
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/preflight.yml
@@ -44,14 +78,47 @@ jobs:
       - name: Smoke test preflight placeholder validation
         run: bash tests/smoke/test_preflight_placeholder_scan.sh
 
+      - name: Smoke test preflight missing nested contract roots
+        run: bash tests/smoke/test_preflight_missing_contract_roots.sh
+
       - name: Smoke test Tailscale tag validation
         run: bash tests/smoke/test_preflight_tailscale_tag_validation.sh
+
+      - name: Smoke test platform bindings public HTTPS composition
+        run: bash tests/smoke/test_platform_bindings_public_https.sh
+
+      - name: Smoke test platform bindings private mesh composition
+        run: bash tests/smoke/test_platform_bindings_private_mesh.sh
+
+      - name: Smoke test platform bindings preserve host extensions
+        run: bash tests/smoke/test_platform_bindings_host_extensions.sh
+
+      - name: Smoke test host Traefik preflight contract validation
+        run: bash tests/smoke/test_preflight_host_traefik_contract_validation.sh
 
       - name: Smoke test builder restic target normalization
         run: bash tests/smoke/test_builder_restic_target_name_normalization.sh
 
+      - name: Smoke test builder obsidian setup URI generation
+        run: bash tests/smoke/test_builder_obsidian_setup_uri_generation.sh
+
+      - name: Smoke test builder restic target keypair consistency
+        run: bash tests/smoke/test_builder_restic_target_keypair_consistency.sh
+
       - name: Smoke test restic target name preflight validation
         run: bash tests/smoke/test_preflight_restic_target_name_validation.sh
+
+      - name: Smoke test restic cache valid time preflight validation
+        run: bash tests/smoke/test_preflight_restic_cache_valid_time_validation.sh
+
+      - name: Smoke test broad backup dataset warning
+        run: bash tests/smoke/test_preflight_restic_broad_path_warning.sh
+
+      - name: Smoke test unsupported feature-owned jobs validation
+        run: bash tests/smoke/test_preflight_feature_owned_jobs_rejected.sh
+
+      - name: Smoke test Obsidian route name validation
+        run: bash tests/smoke/test_preflight_obsidian_route_name_validation.sh
 
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml

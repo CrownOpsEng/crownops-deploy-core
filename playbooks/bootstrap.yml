@@ -15,8 +15,8 @@
         bootstrap_admin_user: "{{ ops_user }}"
         bootstrap_admin_group: "{{ ops_group }}"
         bootstrap_admin_authorized_keys: "{{ ssh_pubkeys }}"
-        bootstrap_ufw_allowed_tcp_public: "{{ ufw_allowed_tcp_public }}"
-        bootstrap_ufw_allowed_udp_public: "{{ ufw_allowed_udp_public }}"
+        bootstrap_ufw_allowed_tcp_public: "{{ host.ufw.baseline_tcp_public }}"
+        bootstrap_ufw_allowed_udp_public: "{{ host.ufw.baseline_udp_public }}"
         bootstrap_install_docker: true
         bootstrap_docker_users:
           - "{{ ops_user }}"

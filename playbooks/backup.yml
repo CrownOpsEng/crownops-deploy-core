@@ -4,5 +4,9 @@
   become: true
   gather_facts: false
   roles:
-    - role: crownops.deploy_services.restic_host_backups
+    - role: platform_bindings
+      tags: [platform, compose]
+    - role: crownops.deploy_services.host_restic
+      vars:
+        host_restic: "{{ platform_host_restic }}"
       tags: [backup, restic, timers]

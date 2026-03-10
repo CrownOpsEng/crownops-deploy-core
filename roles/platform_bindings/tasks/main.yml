@@ -1,0 +1,141 @@
+---
+- name: Initialize platform bindings
+  ansible.builtin.set_fact:
+    platform_feature_root: "{{ vars.get('features', {}) if (vars.get('features', {}) is mapping) else {} }}"
+    platform_host_root: "{{ vars.get('host', {}) if (vars.get('host', {}) is mapping) else {} }}"
+    platform_ingress_routes: []
+    platform_backup_datasets:
+      - name: host-foundation
+        owner: core
+        paths:
+          - /etc/ssh
+          - /etc/fail2ban
+          - /etc/ufw
+        tags:
+          - class:host-foundation
+    platform_ufw_requests: []
+
+- name: Normalize nested platform inputs
+  ansible.builtin.set_fact:
+    platform_obsidian_feature_input: "{{ platform_feature_root.obsidian_livesync | default({}) if ((platform_feature_root.obsidian_livesync | default({})) is mapping) else {} }}"
+    platform_host_traefik_input: "{{ platform_host_root.traefik | default({}) if ((platform_host_root.traefik | default({})) is mapping) else {} }}"
+    platform_host_restic_input: "{{ platform_host_root.restic | default({}) if ((platform_host_root.restic | default({})) is mapping) else {} }}"
+    platform_host_ufw_input: "{{ platform_host_root.ufw | default({}) if ((platform_host_root.ufw | default({})) is mapping) else {} }}"
+
+- name: Compose workspace backup dataset
+  ansible.builtin.set_fact:
+    platform_backup_datasets: "{{ platform_backup_datasets + [platform_workspace_dataset] }}"
+  vars:
+    platform_workspace_dataset:
+      name: workspace-data
+      owner: core_layout
+      paths:
+        - "{{ vault_root }}/workspaces"
+      tags:
+        - class:application-data
+  when: (vault_root | default('') | string | trim) != ''
+
+- name: Compose effective Obsidian feature contract
+  ansible.builtin.set_fact:
+    platform_obsidian_livesync: >-
+      {{
+        platform_obsidian_feature_input
+        | combine(
+            {
+              'ingress': (
+                (platform_obsidian_feature_input.ingress | default({}))
+                | combine(
+                    {
+                      'route_name': (
+                        platform_obsidian_feature_input.ingress.route_name
+                        | default('')
+                        | string
+                      ),
+                      'shared_network_name': (
+                        platform_host_traefik_input.proxy_network_name
+                        if (
+                          (platform_obsidian_feature_input.access_mode | string) == 'public_https'
+                          and (platform_host_traefik_input.enabled | default(false) | bool)
+                        )
+                        else ''
+                      )
+                    },
+                    recursive=True
+                  )
+              )
+            },
+            recursive=True
+          )
+      }}
+  when: platform_obsidian_feature_input.enabled | default(false) | bool
+
+- name: Compose Obsidian ingress route
+  ansible.builtin.set_fact:
+    platform_ingress_routes: "{{ platform_ingress_routes + [platform_obsidian_route] }}"
+  vars:
+    platform_obsidian_route:
+      name: "{{ platform_obsidian_livesync.ingress.route_name }}"
+      rule: "Host(`{{ platform_obsidian_livesync.base_url | regex_replace('^https?://([^/:]+).*$','\\1') }}`)"
+      service_url: "http://{{ platform_obsidian_livesync.couchdb.container_name }}:{{ platform_obsidian_livesync.couchdb.port }}"
+  when:
+    - platform_obsidian_feature_input.enabled | default(false) | bool
+    - (platform_obsidian_feature_input.access_mode | string) == 'public_https'
+    - platform_host_traefik_input.enabled | default(false) | bool
+    - (platform_obsidian_livesync.ingress.route_name | string | trim) != ''
+
+- name: Compose Obsidian backup dataset
+  ansible.builtin.set_fact:
+    platform_backup_datasets: "{{ platform_backup_datasets + [platform_obsidian_dataset] }}"
+  vars:
+    platform_obsidian_dataset:
+      name: obsidian-couchdb-data
+      owner: obsidian_livesync
+      paths:
+        - "{{ platform_obsidian_feature_input.couchdb.dir }}/data"
+      tags:
+        - class:application-data
+        - feature:obsidian-livesync
+      quiesce:
+        pre_commands:
+          - "docker compose -f {{ platform_obsidian_feature_input.couchdb.dir }}/docker-compose.yml stop couchdb"
+        post_commands:
+          - "docker compose -f {{ platform_obsidian_feature_input.couchdb.dir }}/docker-compose.yml start couchdb"
+  when: platform_obsidian_feature_input.enabled | default(false) | bool
+
+- name: Compose Traefik ACME backup dataset
+  ansible.builtin.set_fact:
+    platform_backup_datasets: "{{ platform_backup_datasets + [platform_traefik_dataset] }}"
+  vars:
+    platform_traefik_dataset:
+      name: traefik-acme
+      owner: host_traefik
+      paths:
+        - "{{ platform_host_traefik_input.acme_storage_path }}"
+      tags:
+        - class:host-foundation
+        - host:ingress
+  when: platform_host_traefik_input.enabled | default(false) | bool
+
+- name: Compose managed public HTTPS firewall request
+  ansible.builtin.set_fact:
+    platform_ufw_requests: "{{ platform_ufw_requests + [platform_https_request] }}"
+  vars:
+    platform_https_request:
+      name: https-public
+      port: "{{ platform_host_traefik_input.https_port | int }}"
+      proto: tcp
+      from: any
+      comment: crownops host ingress https
+  when: (platform_ingress_routes | length) > 0
+
+- name: Compose effective host Traefik contract
+  ansible.builtin.set_fact:
+    platform_host_traefik: "{{ platform_host_traefik_input | combine({'routes': (platform_host_traefik_input.routes | default([]) | list) + platform_ingress_routes}, recursive=True) }}"
+
+- name: Compose effective host restic contract
+  ansible.builtin.set_fact:
+    platform_host_restic: "{{ platform_host_restic_input | combine({'datasets': (platform_host_restic_input.datasets | default([]) | list) + platform_backup_datasets}, recursive=True) }}"
+
+- name: Compose effective host UFW contract
+  ansible.builtin.set_fact:
+    platform_host_ufw: "{{ platform_host_ufw_input | combine({'requests': (platform_host_ufw_input.requests | default([]) | list) + platform_ufw_requests}, recursive=True) }}"

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TMP_DIR="$(mktemp -d)"
+source "${ROOT_DIR}/tests/smoke/lib.bash"
+TMP_DIR="$(create_smoke_tmpdir "${ROOT_DIR}")"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
 mkdir -p "${TMP_DIR}/inventories/prod/group_vars/all" "${TMP_DIR}/inventories/prod/group_vars/core_hosts" "${TMP_DIR}/playbooks" "${TMP_DIR}/roles" "${TMP_DIR}/scripts"
@@ -10,6 +11,7 @@ cp "${ROOT_DIR}/ansible.cfg" "${TMP_DIR}/ansible.cfg"
 cp "${ROOT_DIR}/scripts/init-local-config.sh" "${TMP_DIR}/scripts/init-local-config.sh"
 cp "${ROOT_DIR}/playbooks/preflight.yml" "${TMP_DIR}/playbooks/preflight.yml"
 cp -R "${ROOT_DIR}/roles/preflight_validate" "${TMP_DIR}/roles/preflight_validate"
+cp -R "${ROOT_DIR}/roles/platform_bindings" "${TMP_DIR}/roles/platform_bindings"
 cp "${ROOT_DIR}/inventories/prod/hosts.yml.example" "${TMP_DIR}/inventories/prod/hosts.yml.example"
 cp "${ROOT_DIR}/inventories/prod/group_vars/all/main.yml.example" "${TMP_DIR}/inventories/prod/group_vars/all/main.yml.example"
 cp "${ROOT_DIR}/inventories/prod/group_vars/all/vault.yml.example" "${TMP_DIR}/inventories/prod/group_vars/all/vault.yml.example"
@@ -29,7 +31,7 @@ import sys
 
 path = Path(sys.argv[1])
 content = path.read_text()
-content = content.replace("restic_apt_cache_valid_time: 86400", "restic_apt_cache_valid_time: fast")
+content = content.replace("apt_cache_valid_time: 86400", "apt_cache_valid_time: fast")
 path.write_text(content)
 PY
 
@@ -46,7 +48,7 @@ if [[ ${STATUS} -eq 0 ]]; then
   exit 1
 fi
 
-if [[ "${OUTPUT}" != *"restic_apt_cache_valid_time must be an integer"* ]]; then
+if [[ "${OUTPUT}" != *"host.restic.apt_cache_valid_time must be an integer"* ]]; then
   echo "expected restic_apt_cache_valid_time validation error in preflight output" >&2
   printf '%s\n' "${OUTPUT}" >&2
   exit 1

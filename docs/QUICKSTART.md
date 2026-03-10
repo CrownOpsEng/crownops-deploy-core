@@ -71,11 +71,12 @@ Primary configuration surface:
 
 That file should remain the main place where you enable features and define non-secret behavior:
 
-- domains and ingress settings
+- top-level deployment identity, paths, and lockdown settings
 - host bootstrap settings
-- synced Obsidian account definitions
+- feature config under `features.*`
+- shared host capability config under `host.*`
 - local markdown workspace names
-- backup targets, logical jobs, feature contributions, and lockdown behavior
+- host backup targets and logical jobs, with backup datasets composed later by the site layer
 
 Secrets belong in:
 
@@ -110,9 +111,10 @@ At minimum set:
 - DNS and ACME values only for `public_https`
 - a concrete private mesh base URL only for `private_mesh`
 - keep `5984` off the public firewall in `private_mesh`; that path assumes your VPN or mesh provides reachability
-- synced account structure in `all/main.yml` and CouchDB passwords in `all/vault.yml` if Obsidian is enabled
+- synced account structure in `features.obsidian_livesync.couchdb.vaults` and CouchDB passwords in `all/vault.yml` if Obsidian is enabled
 - local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
-- backup targets, backup jobs, and contribution wiring
+- backup targets and backup jobs under `host.restic`; dataset scope comes from site composition, not from feature-owned schedules
+- optional host-owned extensions such as `host.traefik.routes`, `host.restic.datasets`, and `host.ufw.requests` if this site needs extra ingress, backup scope, or firewall rules beyond the composed defaults
 - Tailscale hostname/tags in `all/main.yml` and optional auth key in `all/vault.yml`
 
 Notes:
@@ -123,7 +125,7 @@ Notes:
 - after a successful resumed run, the wizard best-effort securely deletes its own temporary resume-state file
 - Tailscale join is automated during bootstrap when `tailscale_auth_key` is set
 - if you intentionally leave `tailscale_auth_key` blank, join manually and then run `./scripts/ssh-lockdown.sh --confirm` after confirming SSH over Tailscale works
-- SFTP backup transport supports SSH keys on a per-target basis by storing `ssh_private_key` and `ssh_known_hosts` under each `restic_targets` entry, but the wizard now asks for a local `ssh_private_key_file` path so the key itself does not have to be pasted into the terminal or resume state
+- SFTP backup transport supports SSH keys on a per-target basis by storing `ssh_private_key` and `ssh_known_hosts` under each generated `host.restic.targets` entry, but the wizard now asks for a local `ssh_private_key_file` path so the key itself does not have to be pasted into the terminal or resume state
 - the wizard can guide SFTP backup targets by asking for host, user, path, and port, then deriving the restic repository URL and attempting `ssh-keyscan` automatically
 - for Linux backup destinations you control, the wizard can still generate a prerequisite setup script that prepares backup users, SSH keys, and repository paths first
 - staged SSH lockdown is two-phase: `./scripts/ssh-lockdown.sh --phase1-only` validates while preserving public SSH, and `./scripts/ssh-lockdown.sh --confirm` enables the restrictive path

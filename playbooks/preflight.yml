@@ -4,6 +4,19 @@
   connection: local
   become: false
   gather_facts: false
+  vars:
+    preflight_inventory_var_files:
+      - "{{ playbook_dir }}/../inventories/prod/group_vars/all/main.yml"
+      - "{{ playbook_dir }}/../inventories/prod/group_vars/all/vault.yml"
+      - "{{ playbook_dir }}/../inventories/prod/group_vars/core_hosts/main.yml"
+  pre_tasks:
+    - name: Load inventory group variables into localhost preflight scope
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+      loop: "{{ preflight_inventory_var_files }}"
+      tags: [preflight, validate]
   roles:
+    - role: platform_bindings
+      tags: [preflight, validate, platform, compose]
     - role: preflight_validate
       tags: [preflight, validate]

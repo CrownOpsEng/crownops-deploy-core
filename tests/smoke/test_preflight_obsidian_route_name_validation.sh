@@ -28,32 +28,37 @@ sed -i "s/REPLACE_ME/test-secret/g" "${TMP_DIR}/inventories/prod/group_vars/all/
 python3 - <<'PY' "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
 from pathlib import Path
 import sys
+import yaml
 
 path = Path(sys.argv[1])
-content = path.read_text()
-content = content.replace("vault_root: /srv/crownops/vaults", "vault_root: /srv/crownops")
-path.write_text(content)
+content = yaml.safe_load(path.read_text())
+del content["features"]["obsidian_livesync"]["ingress"]["route_name"]
+path.write_text(yaml.safe_dump(content, sort_keys=False))
 PY
 
-python3 - <<'PY' "${TMP_DIR}/roles/platform_bindings/tasks/main.yml"
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-content = path.read_text()
-content = content.replace('- "{{ vault_root }}/workspaces"', '- "{{ vault_root }}"')
-path.write_text(content)
-PY
-
+set +e
 OUTPUT="$(
   cd "${TMP_DIR}" &&
     ANSIBLE_CONFIG="${TMP_DIR}/ansible.cfg" ansible-playbook -e preflight_validate_remote_connectivity=false -i inventories/prod/hosts.yml playbooks/preflight.yml 2>&1
 )"
+STATUS=$?
+set -e
 
-if [[ "${OUTPUT}" != *"Effective backup datasets include broad service roots"* ]]; then
-  echo "expected preflight to warn on broad backup path roots" >&2
+if [[ ${STATUS} -eq 0 ]]; then
+  echo "expected preflight to fail when obsidian ingress.route_name is missing" >&2
+  exit 1
+fi
+
+if [[ "${OUTPUT}" != *"features.obsidian_livesync.ingress.route_name must be a DNS-safe Traefik route identifier when public_https is enabled."* ]]; then
+  echo "expected obsidian route_name validation error in preflight output" >&2
   printf '%s\n' "${OUTPUT}" >&2
   exit 1
 fi
 
-printf 'preflight restic broad path warning smoke test passed\n'
+if [[ "${OUTPUT}" == *"has no attribute 'route_name'"* ]]; then
+  echo "platform_bindings should not crash on missing obsidian ingress.route_name" >&2
+  printf '%s\n' "${OUTPUT}" >&2
+  exit 1
+fi
+
+printf 'preflight obsidian route_name validation smoke test passed\n'
