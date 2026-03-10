@@ -6,23 +6,35 @@ Preferred path:
 
 - `./scripts/setup.sh`
 
-The guided stage order is:
+The guided workflow is organized into phases and stages:
 
-1. configuration and review
-2. vault password strategy
-3. encrypt or re-encrypt `inventories/prod/group_vars/vault.yml`
-4. collection install
-5. preflight
-6. bootstrap
-7. site deploy
-8. backup setup
-9. optional SSH lockdown
+1. Configure
+2. Prepare
+3. Deploy
 
-The wizard makes each stage explicit, so configure-only, configure-plus-preflight, and full setup are all first-class paths.
+Within those phases, the default stage map is:
+
+1. Host Access
+2. Platform
+3. Features
+4. Backups
+5. Advanced
+6. Review
+7. Vault
+8. Prerequisites
+9. Collections
+10. Preflight
+11. Bootstrap
+12. Deploy
+13. Backup
+14. Verification
+15. Hardening
+
+The wizard makes each stage explicit, so configure-only, configure-plus-prepare, and full deployment are all first-class paths.
 
 ## 2. Lower-level phase runners
 
-When you need direct control instead of the wizard-owned stages:
+When you need direct control instead of the wizard-owned workflow stages:
 
 - `./scripts/deploy.sh`
 - `./scripts/ssh-lockdown.sh`

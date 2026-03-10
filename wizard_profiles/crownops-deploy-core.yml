@@ -54,401 +54,563 @@ defaults:
   lockdown_control_host_probe_enabled: false
   lockdown_control_host_probe_host: ""
   lockdown_control_host_probe_timeout: 8
-startup_fields:
-  - id: wizard_mode
-    label: Setup mode
-    help: Quick keeps the defaults moving. Customize opens up more of the wiring from the start.
-    type: select
-    choices: [quick, customize]
-    default: quick
-sections:
-  - id: host
-    title: Host Basics
-    description: Give the host a name, point the wizard at it, and let it establish the first trusted SSH path.
-    fields:
-      - id: host_name
-        label: Inventory host name
-        help: A stable internal label for this machine inside Ansible and the generated records.
-        required: true
-      - id: ansible_host
-        label: Public or reachable host address
-        help: The address Ansible should use right now, before any later network tightening.
-        required: true
-      - id: bootstrap_ansible_user
-        label: Bootstrap SSH user
-        help: The initial account that can reach the host today, often root or ubuntu on a fresh machine.
-        default: root
-        required: true
-      - id: ansible_user
-        label: Steady-state Ansible SSH user
-        help: The account Ansible should keep using after bootstrap completes.
-        default: deploy
-        required: true
-      - id: ssh_setup_mode
-        label: SSH setup path
-        type: select
-        choices: [generate_managed_key, use_existing_public_keys]
-        default: generate_managed_key
-      - id: managed_ssh_keypair
-        label: Managed Ansible SSH key pair
-        type: ssh_keypair
-        when: "ssh_setup_mode == 'generate_managed_key'"
-        source:
-          kind: generate
-          generator: ed25519_keypair
-          params:
-            path_template: "{{ wizard_ssh_dir }}/{{ host_name }}-{{ ansible_user }}"
-            comment_template: "{{ ansible_user }}@{{ host_name }}"
-            reuse_existing: true
-      - id: additional_ssh_pubkeys
-        label: Additional authorized SSH public keys (comma-separated)
-        type: list
-        help: Optional. Add any other public keys that should be trusted on day one besides the managed Ansible key the wizard already handles for you.
-        when: "ssh_setup_mode == 'generate_managed_key'"
-      - id: ssh_pubkeys
-        label: Authorized SSH public keys (comma-separated)
-        type: list
-        when: "ssh_setup_mode == 'use_existing_public_keys'"
-        required: true
-    actions:
-      - kind: ssh_setup
-        when: "ssh_setup_mode == 'generate_managed_key'"
-        save_state: true
-        host_template: "{{ ansible_host }}"
-        ssh_user_template: "{{ bootstrap_ansible_user }}"
-        public_key_path_template: "{{ managed_ssh_keypair.public_key_path }}"
-        private_key_path_template: "{{ managed_ssh_keypair.private_key_path }}"
-        message_template: |
-          Managed SSH key ready for {{ host_name }}.
+phases:
+  - id: configure
+    title: Configure
+    stages:
+      - id: host-access
+        title: Host Access
+        kind: form_stage
+        description: Give the host a name, point the wizard at it, and establish the first trusted SSH path.
+        fields:
+          - id: wizard_mode
+            label: Setup mode
+            help: Quick keeps the defaults moving. Customize opens up more of the wiring from the start.
+            type: select
+            choices: [quick, customize]
+            default: quick
+          - id: host_name
+            label: Inventory host name
+            help: A stable internal label for this machine inside Ansible and the generated records.
+            required: true
+          - id: ansible_host
+            label: Public or reachable host address
+            help: The address Ansible should use right now, before any later network tightening.
+            required: true
+          - id: bootstrap_ansible_user
+            label: Bootstrap SSH user
+            help: The initial account that can reach the host today, often root or ubuntu on a fresh machine.
+            default: root
+            required: true
+          - id: ansible_user
+            label: Steady-state Ansible SSH user
+            help: The account Ansible should keep using after bootstrap completes.
+            default: deploy
+            required: true
+          - id: ssh_setup_mode
+            label: SSH setup path
+            type: select
+            choices: [generate_managed_key, use_existing_public_keys]
+            default: generate_managed_key
+          - id: managed_ssh_keypair
+            label: Managed Ansible SSH key pair
+            type: ssh_keypair
+            when: "ssh_setup_mode == 'generate_managed_key'"
+            source:
+              kind: generate
+              generator: ed25519_keypair
+              params:
+                path_template: "{{ wizard_ssh_dir }}/{{ host_name }}-{{ ansible_user }}"
+                comment_template: "{{ ansible_user }}@{{ host_name }}"
+                reuse_existing: true
+          - id: additional_ssh_pubkeys
+            label: Additional authorized SSH public keys (comma-separated)
+            type: list
+            help: Optional. Add any other public keys that should be trusted on day one besides the managed Ansible key the wizard already handles for you.
+            when: "ssh_setup_mode == 'generate_managed_key'"
+          - id: ssh_pubkeys
+            label: Authorized SSH public keys (comma-separated)
+            type: list
+            when: "ssh_setup_mode == 'use_existing_public_keys'"
+            required: true
+        actions:
+          - kind: ssh_setup
+            when: "ssh_setup_mode == 'generate_managed_key'"
+            save_state: true
+            host_template: "{{ ansible_host }}"
+            ssh_user_template: "{{ bootstrap_ansible_user }}"
+            public_key_path_template: "{{ managed_ssh_keypair.public_key_path }}"
+            private_key_path_template: "{{ managed_ssh_keypair.private_key_path }}"
+            message_template: |
+              Managed SSH key ready for {{ host_name }}.
 
-          Fingerprint: {{ managed_ssh_keypair.fingerprint }}
+              Fingerprint: {{ managed_ssh_keypair.fingerprint }}
 
-          The automatic path uses one password prompt on your machine, installs the key, and verifies direct login.
-          It only proceeds if this server's host key is already trusted on your workstation.
-          The password is only used for that local install step. It is not written to inventory, logs, or resume state.
-        prompt: How would you like to finish SSH access setup?
-  - id: general
-    title: General Deployment Settings
-    description: Baseline identity and naming for this host and its operator-facing domain.
-    fields:
-      - id: base_domain
-        label: Base domain
-        help: The main domain family for this deployment, such as crownopseng.com.
-        required: true
-      - id: ops_domain
-        label: Ops domain
-        help: The operator-facing subdomain space used for service endpoints and infrastructure naming.
-        default_template: "ops.{{ base_domain }}"
-        required: true
-      - id: timezone
-        label: Timezone
-        default: America/Denver
-        required: true
-      - id: bootstrap_target_ubuntu_release
-        label: Target Ubuntu release
-        type: select
-        choices: [jammy, noble]
-        default: jammy
-      - id: ops_user
-        label: Ops user
-        default: deploy
-      - id: ops_group
-        label: Ops group
-        default: deploy
-  - id: features
-    title: Feature Selection
-    description: Turn on the stacks you want and keep the rest quiet.
-    fields:
-      - id: feature_obsidian_enabled
-        label: Enable Obsidian LiveSync stack
-        help: Turn this on when this host should run the CouchDB-backed LiveSync service.
-        type: confirm
-        default: true
-      - id: obsidian_access_mode
-        label: Obsidian access mode
-        type: select
-        choices: [public_https, private_mesh]
-        help: Public HTTPS uses Traefik and ACME. Private mesh skips public ingress and uses the exact mesh URL you provide.
-        default: public_https
-        when: "feature_obsidian_enabled"
-      - id: restic_enabled
-        label: Enable host backups
-        help: Recommended for real deployments. This adds scheduled backups and maintenance timers.
-        type: confirm
-        default: true
-  - id: tailscale
-    title: Tailscale Settings
-    description: Mesh identity and join details. These answers also help the private-mesh flow stay in order.
-    fields:
-      - id: tailscale_hostname
-        label: Tailscale hostname
-        help: Planned node name for mesh access. This can be set before the host joins the tailnet.
-        default_template: "{{ host_name }}"
-      - id: tailscale_auth_key
-        label: Tailscale auth key (blank for manual join)
-        help: Leave blank if you want to join the tailnet manually after bootstrap.
-        type: password
-        secret: true
-        source:
-          kind: optional_prompt
-      - id: tailscale_tags
-        label: Tailscale tags (comma-separated)
-        help: Optional tailnet tags for policy and grouping.
-        type: list
-        default: []
-  - id: obsidian
-    title: Obsidian Feature Settings
-    description: LiveSync settings, access mode, and operator-friendly structure for the shared vault setup.
-    when: "feature_obsidian_enabled"
-    fields:
-      - id: obsidian_service_subdomain
-        label: Obsidian service subdomain
-        help: The public hostname label placed under your ops domain for the LiveSync endpoint.
-        default: notes
-        when: "obsidian_access_mode == 'public_https'"
-      - id: traefik_acme_email
-        label: ACME email
-        help: TLS certificate contact email for Let's Encrypt / ACME account registration
-        required: true
-        when: "obsidian_access_mode == 'public_https'"
-      - id: acme_dns_provider
-        label: ACME DNS provider
-        default: cloudflare
-        when: "obsidian_access_mode == 'public_https'"
-      - id: acme_env
-        label: ACME provider environment values
-        type: key_value
-        secret: true
-        required: true
-        when: "obsidian_access_mode == 'public_https'"
-      - id: private_mesh_url_strategy
-        label: Private mesh URL strategy
-        type: select
-        choices: [tailscale_magicdns, explicit_url]
-        help: Tailscale MagicDNS lets you plan the private URL before the host joins. Explicit URL is for another mesh endpoint or a known private address.
-        default: tailscale_magicdns
-        when: "obsidian_access_mode == 'private_mesh'"
-      - id: tailscale_tailnet_name
-        label: Tailscale tailnet name
-        help: Used to derive a planned MagicDNS hostname like core-01.<tailnet>.ts.net before the machine joins.
-        required: true
-        when: "obsidian_access_mode == 'private_mesh' and private_mesh_url_strategy == 'tailscale_magicdns'"
-      - id: obsidian_base_url
-        label: Obsidian base URL
-        help: Public HTTPS derives this from the subdomain. Explicit private mesh should use the exact URL clients will open, such as http://100.x.y.z:5984 or https://notes.mesh.example.
-        default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% elif private_mesh_url_strategy == 'tailscale_magicdns' and tailscale_tailnet_name %}http://{{ tailscale_hostname }}.{{ tailscale_tailnet_name }}.ts.net:{{ couchdb_port }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
-        required: true
-        when: "obsidian_access_mode == 'public_https' or private_mesh_url_strategy == 'explicit_url'"
-      - id: obsidian_cors_origins
-        label: Additional browser origins (comma-separated)
-        type: list
-        help: Optional extra browser origins beyond the Obsidian app schemes and the base URL. Usually leave this empty.
-      - id: couchdb_admin_user
-        label: CouchDB admin user
-        help: Internal admin account for service bootstrap and maintenance.
-        default: admin
-      - id: couchdb_bind_host
-        label: CouchDB bind host
-        help: Public HTTPS keeps CouchDB local behind Traefik. Private mesh can bind more broadly for mesh reachability.
-        default_template: "{% if obsidian_access_mode == 'public_https' %}127.0.0.1{% else %}0.0.0.0{% endif %}"
-      - id: couchdb_port
-        label: CouchDB port
-        default: 5984
-      - id: vault_root
-        label: Vault root path
-        help: Server-side directory where synchronized vault exports and supporting data live.
-        default: /srv/crownops/vaults
-      - id: exports_root
-        label: Export root path
-        help: Server-side directory for export-style output separate from the primary vault storage path.
-        default: /srv/crownops/exports
-      - id: local_markdown_workspaces
-        label: Local markdown workspaces (comma-separated)
-        type: list
-        default:
-          - shared-docs
-          - operations
-          - scratch
-      - id: vault_couchdb_admin_password
-        label: CouchDB admin password
-        secret: true
-        source:
-          kind: generate
-          generator: password
-          params:
-            length: 32
-  - id: obsidian_vault_accounts
-    title: Obsidian Synced Vaults
-    description: Add the CouchDB-backed vault accounts that Obsidian LiveSync should create. Start with one and add more only if you need them.
-    kind: repeatable
-    when: "feature_obsidian_enabled"
-    collection_key: obsidian_vault_accounts
-    item_label: synced vault
-    default_count: 1
-    min_items: 1
-    fields:
-      - id: name
-        label: Vault label
-        help: Friendly label for this synced vault in deployment records and handoff notes.
-        required: true
-      - id: db_name
-        label: CouchDB database name
-        help: This is the database Obsidian LiveSync will use for this vault. Press Enter to keep the derived default.
-        default_template: "{{ name | lower | replace(' ', '_') }}"
-      - id: user
-        label: CouchDB username
-        help: This is the login Obsidian LiveSync will use for this vault. Press Enter to keep the derived default.
-        default_template: "{{ name | lower | replace(' ', '_') }}"
-      - id: password
-        label: CouchDB password
-        help: A strong password is generated automatically for this synced vault account.
-        secret: true
-        source:
-          kind: generate
-          generator: password
-          params:
-            length: 32
-  - id: restic_targets
-    title: Restic Backup Targets
-    description: Add the places this host should back up to. The guided SFTP path is the smoothest route for another VPS or your laptop.
-    kind: repeatable
-    when: "restic_enabled"
-    collection_key: restic_targets_input
-    item_label: backup target
-    default_count: 1
-    min_items: 1
-    fields:
-      - id: name
-        label: Target name
-        help: Friendly operator label for this destination, such as laptop or secondary-vps.
-        required: true
-      - id: target_mode
-        label: Target type
-        type: select
-        choices: [sftp_ssh, local_path, custom_repository_url]
-        default: sftp_ssh
-      - id: sftp_host
-        label: SFTP host
-        help: Hostname or IP for the backup destination.
-        when: "target_mode == 'sftp_ssh'"
-        required: true
-      - id: sftp_port
-        label: SFTP port
-        when: "target_mode == 'sftp_ssh'"
-        default: 22
-      - id: sftp_user
-        label: SFTP user
-        help: The remote account that will own or write into the restic repository path.
-        when: "target_mode == 'sftp_ssh'"
-        required: true
-      - id: sftp_path
-        label: Backup directory on the destination
-        help: Restic will create and manage the repository under this path.
-        when: "target_mode == 'sftp_ssh'"
-        required: true
-      - id: local_path
-        label: Local or mounted repository path
-        when: "target_mode == 'local_path'"
-        required: true
-      - id: repository
-        label: Restic repository URL
-        help: Only needed for non-guided repository types.
-        when: "target_mode == 'custom_repository_url'"
-        required: true
-      - id: password
-        label: Restic repository password
-        secret: true
-        source:
-          kind: generate
-          generator: password
-          params:
-            length: 32
-      - id: generate_ssh_key
-        label: Generate dedicated backup SSH key pair
-        help: Recommended. This keeps backup transport separate from your day-to-day SSH identity.
-        type: confirm
-        default: true
-        when: "target_mode == 'sftp_ssh'"
-      - id: bootstrap_with_ansible
-        label: Prepare this backup destination with Ansible
-        help: Recommended for another VPS or your Linux laptop when you control the destination and want the wizard to install the backup key and prepare the repository path.
-        type: confirm
-        default: true
-        when: "target_mode == 'sftp_ssh'"
-      - id: bootstrap_ssh_user
-        label: Existing SSH user for destination setup
-        help: The account the wizard should use to reach the backup destination right now.
-        default_template: "{{ sftp_user }}"
-        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
-        required: true
-      - id: bootstrap_ssh_private_key_file
-        label: Optional SSH private key file for destination setup
-        help: Leave blank to use your normal SSH config and agent. Set this if the backup destination needs a specific local key file.
-        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
-      - id: bootstrap_use_sudo
-        label: Use sudo during destination setup
-        help: Turn this on when the setup user needs privilege escalation to create the target account or repository path.
-        type: confirm
-        default: true
-        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
-      - id: bootstrap_manage_sftp_user
-        label: Create or manage the target backup user
-        help: Turn this on when the SFTP user does not exist yet and should be created by Ansible.
-        type: confirm
-        default: false
-        when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
-      - id: ssh_public_key
-        label: Existing backup SSH public key
-        when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
-        required: true
-      - id: ssh_private_key_file
-        label: Existing backup SSH private key file
-        help: Enter the local path to the existing private key file so the wizard can read it without echoing the key in the terminal.
-        when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
-        required: true
-      - id: ssh_known_hosts
-        label: Pinned SSH host keys for the backup destination
-        type: multiline_text
-        help: |
-          This pins the remote SFTP backup destination, not the core host.
-          The wizard can scan the destination on your machine, show the key types it found, and let you choose what to trust.
-          If you already have verified known_hosts lines, enter one line per prompt and submit a blank line when you are done.
-        when: "target_mode == 'sftp_ssh'"
-        source:
-          kind: known_hosts_scan
-          params:
-            host_template: "{{ sftp_host }}"
-            port_template: "{{ sftp_port | default(22) }}"
-      - id: environment
-        label: Extra environment variables for this target
-        type: key_value
-  - id: advanced
-    title: Advanced Settings
-    description: Public ports and lockdown controls for when you want to tune the edge rather than accept the defaults.
-    when: "wizard_mode == 'customize'"
-    fields:
-      - id: ufw_allowed_tcp_public
-        label: Public TCP ports (comma-separated)
-        type: list
-        default:
-          - 22
-          - 443
-      - id: ufw_allowed_udp_public
-        label: Public UDP ports (comma-separated)
-        type: list
-        default: []
-      - id: lockdown_enabled
-        label: Enable staged lockdown by default
-        type: confirm
-        default: false
-      - id: lockdown_confirmed
-        label: Confirm restrictive SSH changes by default
-        type: confirm
-        default: false
-      - id: lockdown_allowed_cidrs
-        label: Lockdown allowlist CIDRs (comma-separated)
-        type: list
-        default: []
+              The automatic path uses one password prompt on your machine, installs the key, and verifies direct login.
+              It only proceeds if this server's host key is already trusted on your workstation.
+              The password is only used for that local install step. It is not written to inventory, logs, or resume state.
+            prompt: How would you like to finish SSH access setup?
+      - id: platform
+        title: Platform
+        kind: form_stage
+        description: Baseline identity and naming for this host and its operator-facing domain.
+        fields:
+          - id: base_domain
+            label: Base domain
+            help: The main domain family for this deployment, such as crownopseng.com.
+            required: true
+          - id: ops_domain
+            label: Ops domain
+            help: The operator-facing subdomain space used for service endpoints and infrastructure naming.
+            default_template: "ops.{{ base_domain }}"
+            required: true
+          - id: timezone
+            label: Timezone
+            default: America/Denver
+            required: true
+          - id: bootstrap_target_ubuntu_release
+            label: Target Ubuntu release
+            type: select
+            choices: [jammy, noble]
+            default: jammy
+          - id: ops_user
+            label: Ops user
+            default: deploy
+          - id: ops_group
+            label: Ops group
+            default: deploy
+      - id: features
+        title: Features
+        kind: form_stage
+        description: Turn on the stacks you want, define their access paths, and set up synced vault accounts when Obsidian is enabled.
+        fields:
+          - id: feature_obsidian_enabled
+            label: Enable Obsidian LiveSync stack
+            help: Turn this on when this host should run the CouchDB-backed LiveSync service.
+            type: confirm
+            default: true
+          - id: obsidian_access_mode
+            label: Obsidian access mode
+            type: select
+            choices: [public_https, private_mesh]
+            help: Public HTTPS uses Traefik and ACME. Private mesh skips public ingress and uses the exact mesh URL you provide.
+            default: public_https
+            when: "feature_obsidian_enabled"
+          - id: tailscale_hostname
+            label: Tailscale hostname
+            help: Planned node name for mesh access. This can be set before the host joins the tailnet.
+            default_template: "{{ host_name }}"
+          - id: tailscale_auth_key
+            label: Tailscale auth key (blank for manual join)
+            help: Leave blank if you want to join the tailnet manually after bootstrap.
+            type: password
+            secret: true
+            source:
+              kind: optional_prompt
+          - id: tailscale_tags
+            label: Tailscale tags (comma-separated)
+            help: Optional tailnet tags for policy and grouping.
+            type: list
+            default: []
+          - id: obsidian_service_subdomain
+            label: Obsidian service subdomain
+            help: The public hostname label placed under your ops domain for the LiveSync endpoint.
+            default: notes
+            when: "feature_obsidian_enabled and obsidian_access_mode == 'public_https'"
+          - id: traefik_acme_email
+            label: ACME email
+            help: TLS certificate contact email for Let's Encrypt / ACME account registration
+            required: true
+            when: "feature_obsidian_enabled and obsidian_access_mode == 'public_https'"
+          - id: acme_dns_provider
+            label: ACME DNS provider
+            default: cloudflare
+            when: "feature_obsidian_enabled and obsidian_access_mode == 'public_https'"
+          - id: acme_env
+            label: ACME provider environment values
+            type: key_value
+            secret: true
+            required: true
+            when: "feature_obsidian_enabled and obsidian_access_mode == 'public_https'"
+          - id: private_mesh_url_strategy
+            label: Private mesh URL strategy
+            type: select
+            choices: [tailscale_magicdns, explicit_url]
+            help: Tailscale MagicDNS lets you plan the private URL before the host joins. Explicit URL is for another mesh endpoint or a known private address.
+            default: tailscale_magicdns
+            when: "feature_obsidian_enabled and obsidian_access_mode == 'private_mesh'"
+          - id: tailscale_tailnet_name
+            label: Tailscale tailnet name
+            help: Used to derive a planned MagicDNS hostname like core-01.<tailnet>.ts.net before the machine joins.
+            required: true
+            when: "feature_obsidian_enabled and obsidian_access_mode == 'private_mesh' and private_mesh_url_strategy == 'tailscale_magicdns'"
+          - id: obsidian_base_url
+            label: Obsidian base URL
+            help: Public HTTPS derives this from the subdomain. Explicit private mesh should use the exact URL clients will open, such as http://100.x.y.z:5984 or https://notes.mesh.example.
+            default_template: "{% if obsidian_access_mode == 'public_https' %}https://{{ obsidian_service_subdomain }}.{{ ops_domain }}{% elif private_mesh_url_strategy == 'tailscale_magicdns' and tailscale_tailnet_name %}http://{{ tailscale_hostname }}.{{ tailscale_tailnet_name }}.ts.net:{{ couchdb_port }}{% else %}http://{{ ansible_host }}:{{ couchdb_port }}{% endif %}"
+            required: true
+            when: "feature_obsidian_enabled and (obsidian_access_mode == 'public_https' or private_mesh_url_strategy == 'explicit_url')"
+          - id: obsidian_cors_origins
+            label: Additional browser origins (comma-separated)
+            type: list
+            help: Optional extra browser origins beyond the Obsidian app schemes and the base URL. Usually leave this empty.
+            when: "feature_obsidian_enabled"
+          - id: couchdb_admin_user
+            label: CouchDB admin user
+            help: Internal admin account for service bootstrap and maintenance.
+            default: admin
+            when: "feature_obsidian_enabled"
+          - id: couchdb_bind_host
+            label: CouchDB bind host
+            help: Public HTTPS keeps CouchDB local behind Traefik. Private mesh can bind more broadly for mesh reachability.
+            default_template: "{% if obsidian_access_mode == 'public_https' %}127.0.0.1{% else %}0.0.0.0{% endif %}"
+            when: "feature_obsidian_enabled"
+          - id: couchdb_port
+            label: CouchDB port
+            default: 5984
+            when: "feature_obsidian_enabled"
+          - id: vault_root
+            label: Vault root path
+            help: Server-side directory where synchronized vault exports and supporting data live.
+            default: /srv/crownops/vaults
+            when: "feature_obsidian_enabled"
+          - id: exports_root
+            label: Export root path
+            help: Server-side directory for export-style output separate from the primary vault storage path.
+            default: /srv/crownops/exports
+            when: "feature_obsidian_enabled"
+          - id: local_markdown_workspaces
+            label: Local markdown workspaces (comma-separated)
+            type: list
+            default:
+              - shared-docs
+              - operations
+              - scratch
+            when: "feature_obsidian_enabled"
+          - id: vault_couchdb_admin_password
+            label: CouchDB admin password
+            secret: true
+            when: "feature_obsidian_enabled"
+            source:
+              kind: generate
+              generator: password
+              params:
+                length: 32
+        repeatables:
+          - id: obsidian-vault-accounts
+            title: Obsidian Synced Vaults
+            when: "feature_obsidian_enabled"
+            collection_key: obsidian_vault_accounts
+            item_label: synced vault
+            default_count: 1
+            min_items: 1
+            fields:
+              - id: name
+                label: Vault label
+                help: Friendly label for this synced vault in deployment records and handoff notes.
+                required: true
+              - id: db_name
+                label: CouchDB database name
+                help: This is the database Obsidian LiveSync will use for this vault. Press Enter to keep the derived default.
+                default_template: "{{ name | lower | replace(' ', '_') }}"
+              - id: user
+                label: CouchDB username
+                help: This is the login Obsidian LiveSync will use for this vault. Press Enter to keep the derived default.
+                default_template: "{{ name | lower | replace(' ', '_') }}"
+              - id: password
+                label: CouchDB password
+                help: A strong password is generated automatically for this synced vault account.
+                secret: true
+                source:
+                  kind: generate
+                  generator: password
+                  params:
+                    length: 32
+      - id: backups
+        title: Backups
+        kind: repeatable_stage
+        description: Add the places this host should back up to and define how the backup transport should be prepared.
+        fields:
+          - id: restic_enabled
+            label: Enable host backups
+            help: Recommended for real deployments. This adds scheduled backups and maintenance timers.
+            type: confirm
+            default: true
+        repeatables:
+          - id: restic-targets
+            title: Restic Backup Targets
+            when: "restic_enabled"
+            collection_key: restic_targets_input
+            item_label: backup target
+            default_count: 1
+            min_items: 1
+            fields:
+              - id: name
+                label: Target name
+                help: Friendly operator label for this destination, such as laptop or secondary-vps.
+                required: true
+              - id: target_mode
+                label: Target type
+                type: select
+                choices: [sftp_ssh, local_path, custom_repository_url]
+                default: sftp_ssh
+              - id: sftp_host
+                label: SFTP host
+                help: Hostname or IP for the backup destination.
+                when: "target_mode == 'sftp_ssh'"
+                required: true
+              - id: sftp_port
+                label: SFTP port
+                when: "target_mode == 'sftp_ssh'"
+                default: 22
+              - id: sftp_user
+                label: SFTP user
+                help: The remote account that will own or write into the restic repository path.
+                when: "target_mode == 'sftp_ssh'"
+                required: true
+              - id: sftp_path
+                label: Backup directory on the destination
+                help: Restic will create and manage the repository under this path.
+                when: "target_mode == 'sftp_ssh'"
+                required: true
+              - id: local_path
+                label: Local or mounted repository path
+                when: "target_mode == 'local_path'"
+                required: true
+              - id: repository
+                label: Restic repository URL
+                help: Only needed for non-guided repository types.
+                when: "target_mode == 'custom_repository_url'"
+                required: true
+              - id: password
+                label: Restic repository password
+                secret: true
+                source:
+                  kind: generate
+                  generator: password
+                  params:
+                    length: 32
+              - id: generate_ssh_key
+                label: Generate dedicated backup SSH key pair
+                help: Recommended. This keeps backup transport separate from your day-to-day SSH identity.
+                type: confirm
+                default: true
+                when: "target_mode == 'sftp_ssh'"
+              - id: bootstrap_with_ansible
+                label: Prepare this backup destination with Ansible
+                help: Recommended for another VPS or your Linux laptop when you control the destination and want the wizard to install the backup key and prepare the repository path.
+                type: confirm
+                default: true
+                when: "target_mode == 'sftp_ssh'"
+              - id: bootstrap_ssh_user
+                label: Existing SSH user for destination setup
+                help: The account the wizard should use to reach the backup destination right now.
+                default_template: "{{ sftp_user }}"
+                when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+                required: true
+              - id: bootstrap_ssh_private_key_file
+                label: Optional SSH private key file for destination setup
+                help: Leave blank to use your normal SSH config and agent. Set this if the backup destination needs a specific local key file.
+                when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+              - id: bootstrap_use_sudo
+                label: Use sudo during destination setup
+                help: Turn this on when the setup user needs privilege escalation to create the target account or repository path.
+                type: confirm
+                default: true
+                when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+              - id: bootstrap_manage_sftp_user
+                label: Create or manage the target backup user
+                help: Turn this on when the SFTP user does not exist yet and should be created by Ansible.
+                type: confirm
+                default: false
+                when: "target_mode == 'sftp_ssh' and bootstrap_with_ansible"
+              - id: ssh_public_key
+                label: Existing backup SSH public key
+                when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
+                required: true
+              - id: ssh_private_key_file
+                label: Existing backup SSH private key file
+                help: Enter the local path to the existing private key file so the wizard can read it without echoing the key in the terminal.
+                when: "target_mode == 'sftp_ssh' and not generate_ssh_key"
+                required: true
+              - id: ssh_known_hosts
+                label: Pinned SSH host keys for the backup destination
+                type: multiline_text
+                help: |
+                  This pins the remote SFTP backup destination, not the core host.
+                  The wizard can scan the destination on your machine, show the key types it found, and let you choose what to trust.
+                  If you already have verified known_hosts lines, enter one line per prompt and submit a blank line when you are done.
+                when: "target_mode == 'sftp_ssh'"
+                source:
+                  kind: known_hosts_scan
+                  params:
+                    host_template: "{{ sftp_host }}"
+                    port_template: "{{ sftp_port | default(22) }}"
+              - id: environment
+                label: Extra environment variables for this target
+                type: key_value
+      - id: advanced
+        title: Advanced
+        kind: form_stage
+        when: "wizard_mode == 'customize'"
+        description: Public ports and lockdown controls for when you want to tune the edge rather than accept the defaults.
+        fields:
+          - id: ufw_allowed_tcp_public
+            label: Public TCP ports (comma-separated)
+            type: list
+            default:
+              - 22
+              - 443
+          - id: ufw_allowed_udp_public
+            label: Public UDP ports (comma-separated)
+            type: list
+            default: []
+          - id: lockdown_enabled
+            label: Enable staged lockdown by default
+            type: confirm
+            default: false
+          - id: lockdown_confirmed
+            label: Confirm restrictive SSH changes by default
+            type: confirm
+            default: false
+          - id: lockdown_allowed_cidrs
+            label: Lockdown allowlist CIDRs (comma-separated)
+            type: list
+            default: []
+      - id: review
+        title: Review
+        kind: review_stage
+        description: Confirm the configuration on screen before the wizard writes files or unlocks later phases.
+        confirmation_prompt: Review complete. What do you want to do next?
+  - id: prepare
+    title: Prepare
+    stages:
+      - id: vault
+        title: Vault
+        kind: command_stage
+        allow_skip: true
+        steps_source: vault
+        description: Choose how later stages unlock vault.yml, then encrypt or re-encrypt the generated vault file.
+      - id: prerequisites
+        title: Prerequisites
+        kind: manual_stage
+        allow_skip: true
+        when: "backup_destination_bootstrap_plans"
+        description: Prepare backup destinations or other prerequisite systems before deployment.
+        checklist:
+          - Confirm you can reach each backup destination from this control host.
+          - Prepare destination users, repository paths, and SSH trust before enabling scheduled backups.
+        confirmation_prompt: When prerequisite work looks correct, what do you want to do?
+        actions:
+          - kind: local_command
+            when: "action_item.bootstrap_enabled"
+            collection_key: backup_destination_bootstrap_plans
+            message_template: |
+              Backup destination prerequisite for {{ action_item.name }}.
+
+              Host: {{ action_item.host }}:{{ action_item.port }}
+              Bootstrap SSH user: {{ action_item.bootstrap_ssh_user }}
+              Target user: {{ action_item.target_user }}
+              Repository path: {{ action_item.repository_path }}
+            command_template: "{{ action_item.command }}"
+            prompt: What do you want to do with this prerequisite command?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
+      - id: collections
+        title: Collections
+        kind: command_stage
+        allow_skip: true
+        description: Install or refresh the required Ansible collections for this repo.
+        actions:
+          - kind: local_command
+            message_template: Install or refresh the required Ansible collections for this repo.
+            command_template: ./scripts/install-collections.sh
+            prompt: What do you want to do with this stage command?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
+  - id: deploy
+    title: Deploy
+    stages:
+      - id: preflight
+        title: Preflight
+        kind: command_stage
+        allow_skip: true
+        description: Validate the generated inventory, secrets wiring, and deployment contract before changing the host.
+        actions:
+          - kind: local_command
+            message_template: Run deployment preflight validation.
+            command_template: >-
+              ansible-playbook -i inventories/prod/hosts.yml{% if vault_password_file %} --vault-password-file {{ vault_password_file }}{% elif vault_password_prompt_mode == 'ask' %} --ask-vault-pass{% endif %} playbooks/preflight.yml
+            prompt: What do you want to do with this stage command?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
+      - id: bootstrap
+        title: Bootstrap
+        kind: command_stage
+        allow_skip: true
+        description: Prepare the host foundation and steady-state access path.
+        actions:
+          - kind: local_command
+            message_template: Run the bootstrap portion of the deployment workflow.
+            command_template: >-
+              ./scripts/deploy.sh --skip-collections --skip-preflight --skip-site --skip-backup{% if vault_password_file %} --vault-password-file {{ vault_password_file }}{% elif vault_password_prompt_mode == 'ask' %} --ask-vault-pass{% endif %}
+            prompt: What do you want to do with this stage command?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
+      - id: deploy
+        title: Deploy
+        kind: command_stage
+        allow_skip: true
+        description: Apply the enabled application and service configuration.
+        actions:
+          - kind: local_command
+            message_template: Run the main deployment stage for enabled application and service configuration.
+            command_template: >-
+              ./scripts/deploy.sh --skip-collections --skip-preflight --skip-bootstrap --skip-backup{% if vault_password_file %} --vault-password-file {{ vault_password_file }}{% elif vault_password_prompt_mode == 'ask' %} --ask-vault-pass{% endif %}
+            prompt: What do you want to do with this stage command?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
+      - id: backup
+        title: Backup
+        kind: command_stage
+        allow_skip: true
+        when: "restic_enabled"
+        description: Configure the scheduled backup jobs and maintenance tasks.
+        actions:
+          - kind: local_command
+            message_template: Configure scheduled backup jobs and maintenance tasks.
+            command_template: >-
+              ./scripts/deploy.sh --skip-collections --skip-preflight --skip-bootstrap --skip-site{% if vault_password_file %} --vault-password-file {{ vault_password_file }}{% elif vault_password_prompt_mode == 'ask' %} --ask-vault-pass{% endif %}
+            prompt: What do you want to do with this stage command?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
+      - id: verification
+        title: Verification
+        kind: manual_stage
+        allow_skip: true
+        description: Confirm that the deployed system is reachable, healthy, and ready before hardening.
+        checklist:
+          - SSH access works with the steady-state operator account.
+          - Docker works and any required containers are healthy.
+          - Tailscale joins cleanly if enabled.
+          - Traefik is healthy and certificates are issued when ingress-backed features are enabled.
+          - Obsidian LiveSync is reachable and functional when enabled.
+          - Backup jobs succeed for every enabled target and at least one restore path has been tested.
+        confirmation_prompt: When verification is complete, what do you want to do?
+      - id: hardening
+        title: Hardening
+        kind: command_stage
+        allow_skip: true
+        description: Run staged SSH hardening after you have confirmed your restrictive access path.
+        actions:
+          - kind: local_command
+            message_template: Choose the SSH hardening command you want to run.
+            command_options:
+              - id: validation
+                label: Validation-only checks
+                command_template: >-
+                  ./scripts/ssh-lockdown.sh --phase1-only{% if vault_password_file %} --vault-password-file {{ vault_password_file }}{% elif vault_password_prompt_mode == 'ask' %} --ask-vault-pass{% endif %}
+              - id: restrictive
+                label: Restrictive SSH lockdown
+                command_template: >-
+                  ./scripts/ssh-lockdown.sh --confirm{% if vault_password_file %} --vault-password-file {{ vault_password_file }}{% elif vault_password_prompt_mode == 'ask' %} --ask-vault-pass{% endif %}
+            prompt: Which hardening command do you want to run?
+            available_choices: [show, run, leave]
+            default_choice: run
+            write_command_file: true
+            working_directory_template: "{{ repo_root }}"
 outputs:
   - id: hosts
     path: inventories/prod/hosts.yml

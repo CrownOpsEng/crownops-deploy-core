@@ -63,7 +63,7 @@ The wizard should be built from small replaceable parts.
 
 A deployment profile defines:
 
-- which sections exist
+- which phases and stages exist
 - which fields are required
 - which defaults are used
 - which conditions control branching
@@ -77,7 +77,7 @@ Profiles should live under a dedicated path such as `wizard/profiles/`.
 The engine is responsible for:
 
 - loading a profile
-- evaluating section and field conditions
+- evaluating phase, stage, and field conditions
 - collecting answers
 - validating answers
 - generating secrets when needed
@@ -172,7 +172,7 @@ Minimum field contract:
 id: couchdb_admin_password
 label: CouchDB admin password
 type: secret
-section: obsidian
+stage: features
 required: true
 when: feature_obsidian_enabled == true
 default: null
@@ -244,7 +244,7 @@ Recommended top-level flow:
 2. choose mode: quick setup or customize
 3. collect host and operator basics
 4. collect feature toggles
-5. branch into enabled feature sections only
+5. branch into enabled feature stages only
 6. resolve secret sources and generate values where applicable
 7. show review screen
 8. show operator record screen
@@ -304,7 +304,7 @@ Allowed content:
 
 - timestamps
 - selected profile
-- completed sections
+- completed stages
 - file write targets
 - whether secrets were generated, prompted, or externally resolved
 - secret fingerprints or IDs where appropriate
@@ -421,7 +421,7 @@ This is a planning target only. The core design must remain vendor-neutral.
 The first delivery is acceptable when:
 
 - a new operator can complete a minimal deployment config without manual YAML editing
-- feature-disabled sections are skipped automatically
+- feature-disabled stages are skipped automatically
 - generated secrets are strong and written only to approved destinations
 - `vault.yml` can be encrypted immediately at the end of the flow
 - the wizard can produce the current repo's expected config shape

@@ -13,7 +13,7 @@ For this public repo:
 
 Planned configuration workflow:
 
-- `./scripts/setup.sh` will generate or collect secrets, write the same inventory contract already used by this repo, and run vault handling before any deployment stage starts
+- `./scripts/setup.sh` will generate or collect secrets, write the same inventory contract already used by this repo, and run vault handling before any preparation or deployment stage starts
 - `./scripts/setup.sh` is only a repo-local wrapper; the shared wizard engine should live in its own repo or installed package
 - `./scripts/deploy.sh` and `./scripts/ssh-lockdown.sh` are lower-level runners that reuse `.vault_pass`, `ansible.cfg`, `ANSIBLE_VAULT_PASSWORD_FILE`, `--vault-password-file`, or `--ask-vault-pass`
 - the wizard design must remain provider-agnostic so future Bitwarden, 1Password, or other external vault drivers can be added without changing the core configuration model

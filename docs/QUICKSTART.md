@@ -50,10 +50,10 @@ It will:
 - write inventory, non-secret settings, and local secret material
 - optionally write a sensitive details file
 - optionally write a sanitized audit log
-- guide vault password strategy before any deployment stage runs
+- guide vault password strategy before any preparation or deployment stage runs
 - optionally encrypt or re-encrypt `inventories/prod/group_vars/vault.yml`
 - install required collections from GitHub
-- optionally run preflight, bootstrap, site deploy, backup setup, and SSH lockdown as explicit wizard stages
+- optionally run prerequisite, collection, preflight, bootstrap, deploy, backup, verification, and SSH hardening stages as explicit wizard stages
 
 Use `./scripts/deploy.sh` only when you want the lower-level deployment runner directly, and `./scripts/ssh-lockdown.sh` only when you want the lower-level hardening runner directly.
 
@@ -140,7 +140,7 @@ Recommended split:
 
 ## Manual phase commands
 
-If you need explicit control instead of the wizard-owned stages:
+If you need explicit control instead of the wizard-owned workflow stages:
 
 ```bash
 ./scripts/deploy.sh
