@@ -410,17 +410,14 @@ sections:
         type: multiline_text
         help: |
           This pins the remote SFTP backup destination, not the core host.
-          Paste verified known_hosts lines here if you already have them.
-          Leave it blank to review a suggested ssh-keyscan result after this step.
+          The wizard can scan the destination on your machine, show the key types it found, and let you choose what to trust.
+          If you already have verified known_hosts lines, you can paste them instead.
         when: "target_mode == 'sftp_ssh'"
-      - id: trust_scanned_ssh_known_hosts
-        label: Use ssh-keyscan result as the trusted pin after you verify it
-        type: confirm
-        default: false
-        help: |
-          Only turn this on if you have verified the backup destination host key out of band.
-          When left off, the wizard will keep the scan result as guidance only and deployment will wait for a verified pin.
-        when: "target_mode == 'sftp_ssh' and not ssh_known_hosts"
+        source:
+          kind: known_hosts_scan
+          params:
+            host_template: "{{ sftp_host }}"
+            port_template: "{{ sftp_port | default(22) }}"
       - id: environment
         label: Extra environment variables for this target
         type: key_value

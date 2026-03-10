@@ -56,11 +56,6 @@
   ```text
   {{ target.known_hosts }}
   ```
-{% elif target.scanned_known_hosts %}
-  Review this untrusted `ssh-keyscan` result before you use it as a pin:
-  ```text
-  {{ target.scanned_known_hosts }}
-  ```
 {% else %}
   Capture and store the SSH host key before deployment:
   ```bash

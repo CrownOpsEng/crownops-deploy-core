@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import re
 import shlex
-import subprocess
 from typing import Any
 
 from ansible_config_wizard.generators import fingerprint, generate_value
@@ -12,20 +11,6 @@ from ansible_config_wizard.generators import fingerprint, generate_value
 def sanitize_identifier(value: str) -> str:
     sanitized = re.sub(r"[^a-zA-Z0-9_]+", "_", value.strip().lower()).strip("_")
     return sanitized or "item"
-
-
-def scan_known_hosts(host: str, port: int | str) -> str:
-    try:
-        result = subprocess.run(
-            ["ssh-keyscan", "-p", str(port), host],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return ""
-    return (result.stdout or "").strip()
 
 
 def build_backup_target_bootstrap_command(
@@ -139,13 +124,8 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
         target_mode = item.get("target_mode") or "sftp_ssh"
         repository = item.get("repository", "")
         known_hosts = item.get("ssh_known_hosts", "") or ""
-        scanned_known_hosts = ""
         if target_mode == "sftp_ssh":
             repository = f"sftp:{item['sftp_user']}@{item['sftp_host']}:{item['sftp_path']}"
-            if not known_hosts:
-                scanned_known_hosts = scan_known_hosts(item["sftp_host"], item.get("sftp_port", 22))
-                if scanned_known_hosts and item.get("trust_scanned_ssh_known_hosts", False):
-                    known_hosts = scanned_known_hosts
         elif target_mode == "local_path":
             repository = item["local_path"]
 
@@ -183,7 +163,6 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
                     "repository": repository,
                     "public_key": ssh_public_key,
                     "known_hosts": known_hosts,
-                    "scanned_known_hosts": scanned_known_hosts,
                 }
             )
             if item.get("bootstrap_with_ansible", False) and ssh_public_key:
