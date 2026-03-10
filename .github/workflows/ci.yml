@@ -30,6 +30,11 @@ jobs:
       - name: Scaffold local config
         run: ./scripts/init-local-config.sh
 
+      - name: Create CI vault password placeholder
+        run: |
+          umask 177
+          printf 'ci-test-only\n' > .vault_pass
+
       - name: Install collections
         run: ./scripts/install-collections.sh
 
