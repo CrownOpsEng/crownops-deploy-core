@@ -1,0 +1,12 @@
+---
+- name: Prepare a Linux SFTP backup destination
+  hosts: backup_destination
+  gather_facts: false
+  become: "{{ backup_target_bootstrap_become | default(false) | bool }}"
+  roles:
+    - role: crownops.deploy_services.restic_sftp_target_bootstrap
+      vars:
+        restic_sftp_target_account: "{{ backup_target_account }}"
+        restic_sftp_target_manage_user: "{{ backup_target_manage_user | default(false) | bool }}"
+        restic_sftp_target_authorized_keys: "{{ backup_target_authorized_keys }}"
+        restic_sftp_target_repository_path: "{{ backup_target_repository_path }}"

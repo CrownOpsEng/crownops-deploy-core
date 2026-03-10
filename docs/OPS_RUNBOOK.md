@@ -2,7 +2,10 @@
 
 ## Core commands
 
-Preferred wrapper:
+Primary interactive path:
+`./scripts/setup.sh`
+
+Lower-level deployment runner:
 `./scripts/deploy.sh`
 
 Collection install only:
@@ -17,11 +20,14 @@ Deploy enabled features:
 Deploy backup jobs:
 `ansible-playbook playbooks/backup.yml`
 
+Test one backup execution without rerunning the full converge:
+`sudo systemctl start crownops-restic-backup-<job>-<target>.service`
+
 Lock down public SSH after Tailscale validation:
-`./scripts/lockdown.sh --confirm`
+`./scripts/ssh-lockdown.sh --confirm`
 
 Validation-only lockdown phase:
-`./scripts/lockdown.sh --phase1-only`
+`./scripts/ssh-lockdown.sh --phase1-only`
 
 ## Manual checks
 
@@ -36,6 +42,9 @@ CouchDB:
 
 Backup timer state:
 `systemctl list-timers 'crownops-restic*'`
+
+Backup service logs:
+`sudo journalctl -u crownops-restic-backup-<job>-<target>.service -n 200 --no-pager`
 
 UFW posture:
 `sudo ufw status numbered`

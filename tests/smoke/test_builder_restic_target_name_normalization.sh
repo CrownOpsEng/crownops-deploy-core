@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+python3 - <<'PY' "${ROOT_DIR}"
+from pathlib import Path
+import types
+import sys
+
+repo_root = Path(sys.argv[1])
+sys.path.insert(0, str(repo_root))
+
+ansible_config_wizard = types.ModuleType("ansible_config_wizard")
+generators = types.ModuleType("ansible_config_wizard.generators")
+generators.fingerprint = lambda value: f"fingerprint:{value}"
+generators.generate_value = lambda kind: {
+    "private_key": "test-private-key",
+    "public_key": "ssh-ed25519 AAAATEST generated@test",
+    "fingerprint": "generated-fingerprint",
+}
+ansible_config_wizard.generators = generators
+sys.modules["ansible_config_wizard"] = ansible_config_wizard
+sys.modules["ansible_config_wizard.generators"] = generators
+
+from wizard_support.builders import build_crownops_deploy_core
+
+result = build_crownops_deploy_core(
+    {
+        "repo_root": str(repo_root),
+        "host_name": "core-01",
+        "base_domain": "example.com",
+        "ops_domain": "ops.example.com",
+        "ssh_setup_mode": "use_existing_public_keys",
+        "ssh_pubkeys": ["ssh-ed25519 AAAATEST example@test"],
+        "feature_obsidian_enabled": False,
+        "restic_enabled": True,
+        "restic_targets_input": [
+            {
+                "name": "H4F",
+                "target_mode": "sftp_ssh",
+                "sftp_user": "backup",
+                "sftp_host": "backup.example.com",
+                "sftp_port": 2222,
+                "sftp_path": "/srv/restic/core",
+                "password": "secret-1",
+            },
+            {
+                "name": "Laptop Backup",
+                "target_mode": "local_path",
+                "local_path": "/srv/restic/laptop",
+                "password": "secret-2",
+            },
+        ],
+    }
+)
+
+target_names = [item["name"] for item in result["restic_targets"]]
+if target_names != ["h4f", "laptop_backup"]:
+    raise SystemExit(f"unexpected normalized restic target names: {target_names!r}")
+
+if result["restic_targets"][0]["sftp_port"] != 2222:
+    raise SystemExit(f"expected first restic target to preserve sftp_port, got {result['restic_targets'][0]['sftp_port']!r}")
+
+for job in result["restic_backup_jobs"]:
+    if job["target_names"] != ["h4f", "laptop_backup"]:
+        raise SystemExit(f"unexpected backup job target names: {job['target_names']!r}")
+
+vault_keys = list(result["vault_restic_target_secrets"].keys())
+if vault_keys != ["h4f", "laptop_backup"]:
+    raise SystemExit(f"unexpected vault target secret keys: {vault_keys!r}")
+
+application_job = next(job for job in result["restic_backup_jobs"] if job["name"] == "application-data")
+if application_job["paths"] != ["{{ vault_root }}/workspaces"]:
+    raise SystemExit(f"unexpected application-data paths for non-obsidian deployment: {application_job['paths']!r}")
+
+obsidian_result = build_crownops_deploy_core(
+    {
+        "repo_root": str(repo_root),
+        "host_name": "core-01",
+        "base_domain": "example.com",
+        "ops_domain": "ops.example.com",
+        "ssh_setup_mode": "use_existing_public_keys",
+        "ssh_pubkeys": ["ssh-ed25519 AAAATEST example@test"],
+        "feature_obsidian_enabled": True,
+        "obsidian_access_mode": "public_https",
+        "obsidian_service_subdomain": "notes",
+        "traefik_acme_email": "ops@example.com",
+        "acme_dns_provider": "cloudflare",
+        "acme_env": {"CF_DNS_API_TOKEN": "token"},
+        "restic_enabled": True,
+        "restic_targets_input": [
+            {
+                "name": "Primary",
+                "target_mode": "local_path",
+                "local_path": "/srv/restic/primary",
+                "password": "secret-1",
+            }
+        ],
+    }
+)
+
+contributions = {item["job"]: item["paths"] for item in obsidian_result["restic_backup_contributions"]}
+if contributions.get("host-foundation") != ["{{ traefik_acme_storage }}"]:
+    raise SystemExit(f"unexpected host-foundation contribution paths: {contributions.get('host-foundation')!r}")
+if contributions.get("application-data") != ["{{ couchdb_dir }}/data"]:
+    raise SystemExit(f"unexpected application-data contribution paths: {contributions.get('application-data')!r}")
+
+print("builder restic target name normalization smoke test passed")
+PY

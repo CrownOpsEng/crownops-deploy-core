@@ -30,11 +30,28 @@ jobs:
       - name: Scaffold local config
         run: ./scripts/init-local-config.sh
 
+      - name: Create CI vault password placeholder
+        run: |
+          umask 177
+          printf 'ci-test-only\n' > .vault_pass
+
       - name: Install collections
         run: ./scripts/install-collections.sh
 
       - name: Syntax check preflight
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/preflight.yml
+
+      - name: Smoke test preflight placeholder validation
+        run: bash tests/smoke/test_preflight_placeholder_scan.sh
+
+      - name: Smoke test Tailscale tag validation
+        run: bash tests/smoke/test_preflight_tailscale_tag_validation.sh
+
+      - name: Smoke test builder restic target normalization
+        run: bash tests/smoke/test_builder_restic_target_name_normalization.sh
+
+      - name: Smoke test restic target name preflight validation
+        run: bash tests/smoke/test_preflight_restic_target_name_validation.sh
 
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml

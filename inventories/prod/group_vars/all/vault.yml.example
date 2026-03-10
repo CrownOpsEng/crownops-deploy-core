@@ -1,0 +1,45 @@
+---
+# Copy this file to inventories/prod/group_vars/all/vault.yml and keep the real file ignored.
+# This repo is public, so do not commit real secrets here.
+#
+# Recommended workflow:
+# 1. copy this example to all/vault.yml
+# 2. put secret values in all/vault.yml
+# 3. encrypt it locally with: ansible-vault encrypt inventories/prod/group_vars/all/vault.yml
+# 4. keep the resulting all/vault.yml untracked
+#
+# Settings/secrets split:
+# - keep non-secret settings in all/main.yml
+# - keep only secret values here and let Ansible load them through the standard group_vars/all/ path
+
+vault_couchdb_admin_password: "REPLACE_ME"
+vault_couchdb_account_passwords:
+  user_a: "REPLACE_ME"
+  user_b: "REPLACE_ME"
+  user_c: "REPLACE_ME"
+vault_obsidian_livesync_bootstrap_accounts:
+  user_a:
+    vault_passphrase: "REPLACE_ME"
+    setup_uri_passphrase: "REPLACE_ME"
+  user_b:
+    vault_passphrase: "REPLACE_ME"
+    setup_uri_passphrase: "REPLACE_ME"
+  user_c:
+    vault_passphrase: "REPLACE_ME"
+    setup_uri_passphrase: "REPLACE_ME"
+vault_restic_target_secrets:
+  primary:
+    password: "REPLACE_ME"
+    ssh_private_key: |
+      REPLACE_ME
+    ssh_known_hosts: |
+      REPLACE_ME
+    environment: {}
+  secondary:
+    password: "REPLACE_ME"
+    ssh_private_key: |
+      REPLACE_ME
+    ssh_known_hosts: |
+      REPLACE_ME
+    environment: {}
+vault_tailscale_auth_key: ""

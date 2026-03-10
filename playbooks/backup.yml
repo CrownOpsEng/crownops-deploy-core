@@ -2,6 +2,7 @@
 - name: Configure backup jobs
   hosts: core_hosts
   become: true
+  gather_facts: false
   roles:
     - role: crownops.deploy_services.restic_host_backups
       tags: [backup, restic, timers]

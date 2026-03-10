@@ -1,0 +1,40 @@
+---
+vault_couchdb_admin_password: {{ vault_couchdb_admin_password | yaml_value }}
+vault_couchdb_account_passwords:
+{% for key, value in vault_couchdb_account_passwords.items() %}
+  {{ key }}: {{ value | yaml_value }}
+{% endfor %}
+vault_obsidian_livesync_bootstrap_accounts:
+{% if vault_obsidian_livesync_bootstrap_accounts %}
+{% for key, value in vault_obsidian_livesync_bootstrap_accounts.items() %}
+  {{ key }}:
+    vault_passphrase: {{ value.vault_passphrase | yaml_value }}
+    setup_uri_passphrase: {{ value.setup_uri_passphrase | yaml_value }}
+{% endfor %}
+{% else %}
+  {}
+{% endif %}
+vault_restic_target_secrets:
+{% for key, value in vault_restic_target_secrets.items() %}
+  {{ key }}:
+    password: {{ value.password | yaml_value }}
+{% if value.ssh_private_key %}
+    ssh_private_key: |
+{{ value.ssh_private_key | indent_text(6) }}
+{% else %}
+    ssh_private_key: ""
+{% endif %}
+{% if value.ssh_known_hosts %}
+    ssh_known_hosts: |
+{{ value.ssh_known_hosts | indent_text(6) }}
+{% else %}
+    ssh_known_hosts: ""
+{% endif %}
+    environment:
+{% if value.environment %}
+{{ value.environment | yaml_block(6) }}
+{% else %}
+      {}
+{% endif %}
+{% endfor %}
+vault_tailscale_auth_key: {{ tailscale_auth_key | yaml_value }}

@@ -4,72 +4,59 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
+source "${ROOT_DIR}/scripts/lib/ansible-runner.sh"
+
 INVENTORY="inventories/prod/hosts.yml"
+VAULT_FILE="inventories/prod/group_vars/all/vault.yml"
 VAULT_PASS_FILE=""
-ASSUME_YES=0
+ASK_VAULT_PASS=0
+RUN_COLLECTIONS=1
 RUN_PREFLIGHT=1
 RUN_BOOTSTRAP=1
 RUN_SITE=1
 RUN_BACKUP=1
-RUN_LOCKDOWN=0
-CONFIRM_LOCKDOWN=0
 
 usage() {
   cat <<'USAGE'
 Usage: scripts/deploy.sh [options]
 
+Lower-level deployment runner for explicit Ansible phases.
+
 Options:
-  -i <inventory>           Inventory path (default: inventories/prod/hosts.yml)
-  -p <vault pass file>     Optional Ansible Vault password file
-  -y, --yes                Non-interactive mode; accept defaults
-  --skip-preflight         Skip preflight
-  --skip-bootstrap         Skip bootstrap
-  --skip-site              Skip site deployment
-  --skip-backup            Skip backup configuration
-  --enable-lockdown        Run the staged SSH lockdown phase after deployment phases
-  --confirm-lockdown       Confirm restrictive SSH changes during the lockdown phase
-  --lockdown               Deprecated alias for --enable-lockdown
-  -h, --help               Show this help
+  -i <inventory>               Inventory path (default: inventories/prod/hosts.yml)
+  --vault-password-file <path> Vault password file
+  --ask-vault-pass            Prompt for the vault password interactively
+  --skip-collections          Skip collection installation
+  --skip-preflight            Skip preflight
+  --skip-bootstrap            Skip bootstrap
+  --skip-site                 Skip site deployment
+  --skip-backup               Skip backup setup
+  -h, --help                  Show this help
 USAGE
 }
 
 ensure_local_config() {
-  local missing=0
   local required_files=(
     "inventories/prod/hosts.yml"
-    "inventories/prod/group_vars/all.yml"
-    "inventories/prod/group_vars/core_hosts.yml"
-    "inventories/prod/group_vars/vault.yml"
+    "inventories/prod/group_vars/all/main.yml"
+    "inventories/prod/group_vars/all/vault.yml"
+    "inventories/prod/group_vars/core_hosts/main.yml"
   )
-
+  local file
   for file in "${required_files[@]}"; do
     if [[ ! -f "${file}" ]]; then
-      missing=1
-      break
+      echo "Local deployment config is missing." >&2
+      echo "Run ./scripts/setup.sh to generate local config and secrets." >&2
+      exit 1
     fi
   done
-
-  if [[ "${missing}" -eq 0 ]]; then
-    return 0
-  fi
-
-  echo "Local deployment config is missing."
-  echo "Bootstrapping local working files from tracked .example files."
-  ./scripts/init-local-config.sh
-  echo "Edit the generated local files, encrypt inventories/prod/group_vars/vault.yml, then rerun deploy."
-  exit 1
 }
 
-prompt_yes_no() {
-  local prompt="$1"
-  local default="$2"
-  local answer
-  if [[ "$ASSUME_YES" -eq 1 ]]; then
-    [[ "$default" == "y" ]] && return 0 || return 1
-  fi
-  read -r -p "${prompt} [${default}/$( [[ "$default" == "y" ]] && echo n || echo y )]: " answer
-  answer="${answer:-$default}"
-  [[ "$answer" =~ ^[Yy]$ ]]
+run_playbook() {
+  local playbook="$1"
+  shift || true
+  echo "==> ${playbook}"
+  ansible-playbook -i "${INVENTORY}" "${RUNNER_VAULT_ARGS[@]}" "${playbook}" "$@"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -78,12 +65,16 @@ while [[ $# -gt 0 ]]; do
       INVENTORY="$2"
       shift 2
       ;;
-    -p)
+    --vault-password-file|-p)
       VAULT_PASS_FILE="$2"
       shift 2
       ;;
-    -y|--yes)
-      ASSUME_YES=1
+    --ask-vault-pass)
+      ASK_VAULT_PASS=1
+      shift
+      ;;
+    --skip-collections)
+      RUN_COLLECTIONS=0
       shift
       ;;
     --skip-preflight)
@@ -102,18 +93,6 @@ while [[ $# -gt 0 ]]; do
       RUN_BACKUP=0
       shift
       ;;
-    --enable-lockdown)
-      RUN_LOCKDOWN=1
-      shift
-      ;;
-    --confirm-lockdown)
-      CONFIRM_LOCKDOWN=1
-      shift
-      ;;
-    --lockdown)
-      RUN_LOCKDOWN=1
-      shift
-      ;;
     -h|--help)
       usage
       exit 0
@@ -126,55 +105,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ "$ASSUME_YES" -eq 0 ]]; then
-  read -r -p "Inventory path [${INVENTORY}]: " inventory_answer
-  INVENTORY="${inventory_answer:-$INVENTORY}"
-
-  read -r -p "Vault password file (leave blank to omit): " vault_answer
-  VAULT_PASS_FILE="${vault_answer:-$VAULT_PASS_FILE}"
-
-  prompt_yes_no "Run preflight?" y && RUN_PREFLIGHT=1 || RUN_PREFLIGHT=0
-  prompt_yes_no "Run bootstrap?" y && RUN_BOOTSTRAP=1 || RUN_BOOTSTRAP=0
-  prompt_yes_no "Run site deployment?" y && RUN_SITE=1 || RUN_SITE=0
-  prompt_yes_no "Run backup setup?" y && RUN_BACKUP=1 || RUN_BACKUP=0
-  prompt_yes_no "Run staged SSH lockdown phase?" n && RUN_LOCKDOWN=1 || RUN_LOCKDOWN=0
-  if [[ "$RUN_LOCKDOWN" -eq 1 ]]; then
-    prompt_yes_no "Confirm restrictive SSH changes if runtime checks pass?" n && CONFIRM_LOCKDOWN=1 || CONFIRM_LOCKDOWN=0
-  fi
-fi
-
-if [[ "$CONFIRM_LOCKDOWN" -eq 1 && "$RUN_LOCKDOWN" -eq 0 ]]; then
-  echo "ERROR: --confirm-lockdown requires --enable-lockdown." >&2
-  exit 2
-fi
-
 ensure_local_config
-[[ -f "$INVENTORY" ]] || { echo "ERROR: inventory not found: $INVENTORY" >&2; exit 1; }
+runner_require_file "${INVENTORY}"
+runner_resolve_vault_args "${ROOT_DIR}" "${VAULT_FILE}" "${VAULT_PASS_FILE}" "${ASK_VAULT_PASS}"
 
-VAULT_ARGS=()
-if [[ -n "$VAULT_PASS_FILE" ]]; then
-  [[ -f "$VAULT_PASS_FILE" ]] || { echo "ERROR: vault password file not found: $VAULT_PASS_FILE" >&2; exit 1; }
-  VAULT_ARGS=(--vault-password-file "$VAULT_PASS_FILE")
+if [[ "${RUN_COLLECTIONS}" -eq 1 ]]; then
+  "${ROOT_DIR}/scripts/install-collections.sh"
+fi
+if [[ "${RUN_PREFLIGHT}" -eq 1 ]]; then
+  run_playbook playbooks/preflight.yml
+fi
+if [[ "${RUN_BOOTSTRAP}" -eq 1 ]]; then
+  run_playbook playbooks/bootstrap.yml
+fi
+if [[ "${RUN_SITE}" -eq 1 ]]; then
+  run_playbook playbooks/site.yml
+fi
+if [[ "${RUN_BACKUP}" -eq 1 ]]; then
+  run_playbook playbooks/backup.yml
 fi
 
-run_playbook() {
-  local playbook="$1"
-  shift || true
-  echo "==> ${playbook}"
-  ansible-playbook -i "$INVENTORY" "${VAULT_ARGS[@]}" "$playbook" "$@"
-}
-
-./scripts/install-collections.sh
-
-[[ "$RUN_PREFLIGHT" -eq 1 ]] && run_playbook playbooks/preflight.yml
-[[ "$RUN_BOOTSTRAP" -eq 1 ]] && run_playbook playbooks/bootstrap.yml
-[[ "$RUN_SITE" -eq 1 ]] && run_playbook playbooks/site.yml
-[[ "$RUN_BACKUP" -eq 1 ]] && run_playbook playbooks/backup.yml
-if [[ "$RUN_LOCKDOWN" -eq 1 ]]; then
-  if [[ "$CONFIRM_LOCKDOWN" -eq 0 ]]; then
-    echo "==> lockdown phase requested without explicit confirmation; runtime checks will run but public SSH will be preserved."
-  fi
-  run_playbook playbooks/lockdown.yml -e "lockdown_enabled=true" -e "lockdown_confirmed=${CONFIRM_LOCKDOWN}"
-fi
-
-echo "Deploy sequence complete."
+echo "Deployment sequence complete."

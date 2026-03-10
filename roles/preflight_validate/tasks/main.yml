@@ -7,7 +7,15 @@
 - name: Capture inventory view for validation
   ansible.builtin.set_fact:
     preflight_group_hosts: "{{ groups[preflight_target_group] | default([]) }}"
-    preflight_inventory_dump: "{{ hostvars | to_nice_yaml }}"
+    preflight_config_dump: |-
+      {% for item in preflight_inventory_scan_files %}
+      {{ lookup('ansible.builtin.file', item, errors='ignore') | default('', true) }}
+      {% endfor %}
+
+- name: Load inventory group variables into localhost preflight scope
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+  loop: "{{ preflight_inventory_var_files }}"
 
 - name: Check target group population
   ansible.builtin.set_fact:
@@ -81,7 +89,15 @@
     preflight_errors: "{{ preflight_errors + ['ufw_allowed_tcp_public must include 443 while the Obsidian feature stack is enabled.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - ufw_allowed_tcp_public is not defined or 443 not in (ufw_allowed_tcp_public | list)
+
+- name: Check Obsidian access mode
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['obsidian_access_mode must be public_https or private_mesh while the Obsidian feature stack is enabled.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) not in ['public_https', 'private_mesh']
 
 - name: Check ops user
   ansible.builtin.set_fact:
@@ -93,6 +109,7 @@
     preflight_errors: "{{ preflight_errors + ['traefik_acme_email is unset or placeholder: ' ~ (traefik_acme_email | string) ~ '.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - traefik_acme_email is not defined or '@' not in (traefik_acme_email | string) or 'example.invalid' in (traefik_acme_email | string) or 'change-me@' in (traefik_acme_email | string)
 
 - name: Check ACME DNS provider
@@ -100,6 +117,7 @@
     preflight_errors: "{{ preflight_errors + ['acme_dns_provider is unset.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - acme_dns_provider is not defined or (acme_dns_provider | string | trim) == ''
 
 - name: Check ACME env exists
@@ -107,6 +125,7 @@
     preflight_errors: "{{ preflight_errors + ['acme_env is empty. DNS-01 certificate issuance cannot work without provider credentials.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - acme_env is not defined or (acme_env | length) == 0
 
 - name: Check ACME env placeholder values
@@ -114,22 +133,78 @@
     preflight_errors: "{{ preflight_errors + ['acme_env still contains placeholder values. Replace all REPLACE_ME entries with real DNS provider credentials.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'public_https'
     - acme_env is defined
     - (acme_env | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check private mesh base URL
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['obsidian_base_url must be a non-placeholder http or https URL while Obsidian is enabled in private_mesh mode.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - obsidian_base_url is not defined or (obsidian_base_url | string | trim) == '' or 'example.invalid' in (obsidian_base_url | string) or not ((obsidian_base_url | string) is match('^https?://'))
+
+- name: Check Tailscale MagicDNS planning inputs
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_tailnet_name must be set when private_mesh uses the tailscale_magicdns URL strategy.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
+    - tailscale_tailnet_name is not defined or (tailscale_tailnet_name | string | trim) == ''
+
+- name: Check Tailscale hostname format for MagicDNS planning
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_hostname must be a DNS-safe machine name when private_mesh uses tailscale_magicdns. Use only letters, numbers, and hyphens.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
+    - tailscale_hostname is not defined or not ((tailscale_hostname | string) is match('^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'))
+
+- name: Check Tailscale tailnet input format for MagicDNS planning
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['tailscale_tailnet_name must be the tailnet name only, without the .ts.net suffix, when private_mesh uses tailscale_magicdns.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - (private_mesh_url_strategy | default('explicit_url') | string) == 'tailscale_magicdns'
+    - tailscale_tailnet_name is defined
+    - (tailscale_tailnet_name | string | trim) != ''
+    - (tailscale_tailnet_name | string) is search('\\.ts\\.net$')
+
+- name: Check private mesh URL for duplicated ts.net suffix
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['obsidian_base_url contains a duplicated .ts.net suffix. Review tailscale_hostname and tailscale_tailnet_name planning inputs.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - obsidian_base_url is defined
+    - (obsidian_base_url | string) is search('\\.ts\\.net\\.ts\\.net')
+
+- name: Check private mesh does not expose CouchDB publicly
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['private_mesh mode must not expose CouchDB on the public firewall. Remove 5984 from ufw_allowed_tcp_public or keep CouchDB bound to a non-public interface.'] }}"
+  when:
+    - feature_obsidian_enabled | default(true) | bool
+    - (obsidian_access_mode | default('public_https') | string) == 'private_mesh'
+    - ufw_allowed_tcp_public is defined
+    - 5984 in (ufw_allowed_tcp_public | list)
 
 - name: Check CouchDB admin credentials
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['couchdb_admin_user or couchdb_admin_password is unset or placeholder.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
-    - couchdb_admin_user is not defined or couchdb_admin_password is not defined or (couchdb_admin_user | string | trim) == '' or (couchdb_admin_password | string | trim) == '' or 'REPLACE_ME' in (couchdb_admin_password | string)
+    - "'couchdb_admin_user:' not in preflight_config_dump or 'couchdb_admin_password:' not in preflight_config_dump or 'couchdb_admin_password: REPLACE_ME' in preflight_config_dump"
 
 - name: Check synced vault definitions exist
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['couchdb_vaults must contain at least one sync account definition while the Obsidian feature stack is enabled.'] }}"
   when:
     - feature_obsidian_enabled | default(true) | bool
-    - couchdb_vaults is not defined or (couchdb_vaults | length) == 0
+    - "'couchdb_vaults:' not in preflight_config_dump or 'couchdb_vaults: []' in preflight_config_dump"
 
 - name: Check duplicate synced vault names
   ansible.builtin.set_fact:
@@ -183,7 +258,7 @@
     preflight_errors: "{{ preflight_errors + ['restic_enabled=true but restic_targets is empty. Define at least one enabled backup target.'] }}"
   when:
     - restic_enabled | default(true) | bool
-    - restic_targets is not defined or (restic_targets | length) == 0
+    - "'restic_targets:' not in preflight_config_dump or 'restic_targets: []' in preflight_config_dump"
 
 - name: Check restic jobs defined when backups are enabled
   ansible.builtin.set_fact:
@@ -192,6 +267,14 @@
     - restic_enabled | default(true) | bool
     - restic_backup_jobs is not defined or (restic_backup_jobs | length) == 0
 
+- name: Check restic apt cache reuse window format
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic_apt_cache_valid_time must be an integer greater than or equal to 0 so backup package installation uses a valid apt cache policy.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_apt_cache_valid_time is defined
+    - not ((restic_apt_cache_valid_time | string) is match('^[0-9]+$'))
+
 - name: Check duplicate restic target names
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['restic_targets contains duplicate target names.'] }}"
@@ -199,6 +282,23 @@
     - restic_enabled | default(true) | bool
     - restic_targets is defined
     - ((restic_targets | map(attribute='name') | list | unique | length) != (restic_targets | map(attribute='name') | list | length))
+
+- name: Check restic target naming format
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Every restic target name must be lowercase and match ^[a-z0-9][a-z0-9_-]*$. Invalid target names: ' ~ (preflight_invalid_restic_target_names | join(', ')) ~ '.'] }}"
+  vars:
+    preflight_invalid_restic_target_names: >-
+      {{
+        restic_targets
+        | default([])
+        | map(attribute='name')
+        | reject('match', '^[a-z0-9][a-z0-9_-]*$')
+        | list
+      }}
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_targets is defined
+    - (preflight_invalid_restic_target_names | length) > 0
 
 - name: Check duplicate restic job names
   ansible.builtin.set_fact:
@@ -218,6 +318,57 @@
       ('example.invalid' in (restic_targets | to_nice_yaml))
       or ('REPLACE_ME' in (restic_targets | to_nice_yaml))
 
+- name: Check restic target passwords
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Every restic target must resolve to a non-placeholder password in vault_restic_target_secrets.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - vault_restic_target_secrets is defined
+    - (vault_restic_target_secrets | to_nice_yaml) is search('REPLACE_ME')
+
+- name: Check restic jobs have valid target_names
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic backup job ' ~ (item.name | default('unnamed')) ~ ' must define target_names as a non-empty list of target names.'] }}"
+  loop: "{{ restic_backup_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - item.target_names is not defined or item.target_names is string or item.target_names is not sequence or (item.target_names | length) == 0
+
+- name: Check restic job target references
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['restic backup job ' ~ (item.name | default('unnamed')) ~ ' references unknown target names: ' ~ ((item.target_names | difference(preflight_restic_target_names)) | join(', ')) ~ '.'] }}"
+  loop: "{{ restic_backup_jobs | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('unnamed') }}"
+  vars:
+    preflight_restic_target_names: "{{ restic_targets | default([]) | map(attribute='name') | list }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_targets is defined
+    - item.target_names is defined
+    - item.target_names is sequence
+    - item.target_names is not string
+    - (item.target_names | length) > 0
+    - (item.target_names | difference(preflight_restic_target_names) | length) > 0
+
+- name: Check restic jobs have paths or contributions
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Each restic backup job must include paths directly or receive paths through restic_backup_contributions.'] }}"
+  vars:
+    preflight_restic_job_names_with_contributions: "{{ restic_backup_contributions | default([]) | map(attribute='job') | list }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - restic_backup_jobs is defined
+    - >-
+      (
+        restic_backup_jobs
+        | rejectattr('paths', 'defined')
+        | map(attribute='name')
+        | list
+      ) | difference(preflight_restic_job_names_with_contributions) | length > 0
+
 - name: Check restic contribution job references
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['restic_backup_contributions references one or more undefined jobs.'] }}"
@@ -232,6 +383,74 @@
         | difference(restic_backup_jobs | default([]) | map(attribute='name') | list)
         | length
       ) > 0
+
+- name: Warn on broad restic backup roots
+  ansible.builtin.set_fact:
+    preflight_warnings: "{{ preflight_warnings + ['restic backup paths include broad service roots (' ~ (preflight_broad_restic_paths | join(', ')) ~ '). Prefer precise durable state only, such as ' ~ (preflight_restic_precise_examples | join(', ')) ~ ', so backups do not capture rebuildable configs, exports, or package bloat.'] }}"
+  vars:
+    preflight_broad_restic_path_candidates: >-
+      {{
+        [
+          couchdb_dir | default(''),
+          traefik_dir | default(''),
+          vault_root | default(''),
+          (vault_root | default('')) ~ '/synced',
+          exports_root | default(''),
+          (exports_root | default('')) ~ '/shared',
+          '/srv/crownops'
+        ]
+        | reject('equalto', '')
+        | unique
+        | list
+      }}
+    preflight_broad_restic_paths: >-
+      {{
+        (
+          (
+            restic_backup_jobs | default([])
+            | map(attribute='paths')
+            | select('defined')
+            | list
+            | sum(start=[])
+          )
+          + (
+            restic_backup_contributions | default([])
+            | map(attribute='paths')
+            | select('defined')
+            | list
+            | sum(start=[])
+          )
+        )
+        | select('in', preflight_broad_restic_path_candidates)
+        | unique
+        | list
+      }}
+    preflight_restic_precise_examples: >-
+      {{
+        [
+          (couchdb_dir | default('/opt/couchdb')) ~ '/data',
+          traefik_acme_storage | default('/opt/traefik/acme/acme.json'),
+          (vault_root | default('/srv/crownops/vaults')) ~ '/workspaces'
+        ]
+      }}
+  when:
+    - restic_enabled | default(true) | bool
+    - (preflight_broad_restic_paths | length) > 0
+
+- name: Check restic SSH known_hosts requirements
+  ansible.builtin.set_fact:
+    preflight_errors: "{{ preflight_errors + ['Each restic target that uses an SSH private key must also define ssh_known_hosts.'] }}"
+  when:
+    - restic_enabled | default(true) | bool
+    - vault_restic_target_secrets is defined
+    - >-
+      (
+        vault_restic_target_secrets | dict2items
+        | selectattr('value.ssh_private_key', 'defined')
+        | selectattr('value.ssh_private_key', 'truthy')
+        | rejectattr('value.ssh_known_hosts', 'truthy')
+        | list
+      ) | length > 0
 
 - name: Warn when Tailscale join is manual
   ansible.builtin.set_fact:
@@ -250,9 +469,9 @@
     preflight_errors: "{{ preflight_errors + ['tailscale_hostname is unset.'] }}"
   when: tailscale_hostname is not defined or (tailscale_hostname | string | trim) == ''
 
-- name: Check Tailscale tag format warning
+- name: Check Tailscale tag format
   ansible.builtin.set_fact:
-    preflight_warnings: "{{ preflight_warnings + ['tailscale_tags entries should usually use the tag: prefix, e.g. tag:core. Current value set may need review.'] }}"
+    preflight_errors: "{{ preflight_errors + ['tailscale_tags entries must use the full Tailscale tag name with the tag: prefix, for example tag:core.'] }}"
   when:
     - tailscale_tags is defined
     - (tailscale_tags | length) > 0
@@ -290,9 +509,9 @@
   ansible.builtin.set_fact:
     preflight_errors: "{{ preflight_errors + ['Placeholder markers remain in inventory variables. Replace REPLACE_ME, example.invalid, and other draft values before deployment.'] }}"
   when: |
-    'REPLACE_ME' in (preflight_inventory_dump ~ (vars | to_nice_yaml)) or
-    'example.invalid' in (preflight_inventory_dump ~ (vars | to_nice_yaml)) or
-    'change-me@' in (preflight_inventory_dump ~ (vars | to_nice_yaml))
+    'REPLACE_ME' in preflight_config_dump or
+    'example.invalid' in preflight_config_dump or
+    'change-me@' in preflight_config_dump
 
 - name: Probe target hosts with ping without hard fail
   ansible.builtin.ping:

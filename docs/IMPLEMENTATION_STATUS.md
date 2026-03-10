@@ -19,8 +19,10 @@ This file states exactly what is done, what is not done, and what gaps remain.
   - `core_layout`
   - `preflight_validate`
 - Wrapper scripts created:
+  - `scripts/setup.sh`
   - `scripts/install-collections.sh`
   - `scripts/deploy.sh`
+  - `scripts/ssh-lockdown.sh`
   - `scripts/init-local-config.sh`
 
 ## Not done in this package
@@ -55,11 +57,7 @@ This file states exactly what is done, what is not done, and what gaps remain.
 If you come back cold, do this in order:
 
 1. Read `docs/DEPLOYMENT_SEQUENCE.md`.
-2. Fill inventory and vars.
-3. Put secrets into Ansible Vault.
-4. Run `playbooks/preflight.yml`.
-5. Run `playbooks/bootstrap.yml`.
-6. Run `playbooks/site.yml`.
-7. Run `playbooks/backup.yml`.
-8. Validate Tailscale access and then run `./scripts/lockdown.sh --confirm`.
-9. Manually validate HTTPS, CouchDB, LiveSync, and at least one real restore path.
+2. Run `./scripts/setup.sh`.
+3. If you need lower-level control, use `./scripts/deploy.sh` for deploy phases.
+4. Validate Tailscale access and then run `./scripts/ssh-lockdown.sh --confirm`.
+5. Manually validate HTTPS, CouchDB, LiveSync, and at least one real restore path.
