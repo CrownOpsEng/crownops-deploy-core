@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_DIR="$(dirname "${ROOT_DIR}")"
 COLLECTIONS_PATH="${ROOT_DIR}/.ansible/collections"
 STATE_PATH="${ROOT_DIR}/.ansible/collection-state"
+LOCAL_TEMP_PATH="${ROOT_DIR}/.ansible/tmp"
 PUBLIC_REQUIREMENTS="${ROOT_DIR}/collections/requirements.yml"
 BASE_COLLECTION_REMOTE_DEFAULT="git+https://github.com/CrownOpsEng/crownops-deploy-base.git"
 SERVICES_COLLECTION_REMOTE_DEFAULT="git+https://github.com/CrownOpsEng/crownops-deploy-services.git"
@@ -204,6 +205,10 @@ command -v ansible-galaxy >/dev/null 2>&1 || die "ansible-galaxy is required on 
 
 mkdir -p "${COLLECTIONS_PATH}"
 mkdir -p "${STATE_PATH}"
+mkdir -p "${LOCAL_TEMP_PATH}"
+
+chmod 700 "${LOCAL_TEMP_PATH}"
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-${LOCAL_TEMP_PATH}}"
 
 install_requirements
 install_named_collection 2 "crownops.deploy_base" "${BASE_COLLECTION_SOURCE}"

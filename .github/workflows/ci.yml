@@ -35,8 +35,42 @@ jobs:
           umask 177
           printf 'ci-test-only\n' > .vault_pass
 
+      - name: Stage matching provider collection branches
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          clone_matching_branch() {
+            local repo="$1"
+            local dest="$2"
+            local remote="https://x-access-token:${GITHUB_TOKEN}@github.com/CrownOpsEng/${repo}.git"
+
+            if git ls-remote --exit-code --heads "${remote}" "${GITHUB_HEAD_REF}" >/dev/null 2>&1; then
+              git clone --depth 1 --branch "${GITHUB_HEAD_REF}" "${remote}" "${dest}"
+            else
+              echo "No matching ${GITHUB_HEAD_REF} branch in ${repo}; using the default collection source."
+            fi
+          }
+
+          mkdir -p .deps
+          clone_matching_branch crownops-deploy-base .deps/crownops-deploy-base
+          clone_matching_branch crownops-deploy-services .deps/crownops-deploy-services
+
       - name: Install collections
-        run: ./scripts/install-collections.sh
+        run: |
+          set -euo pipefail
+
+          if [[ -f "${GITHUB_WORKSPACE}/.deps/crownops-deploy-base/galaxy.yml" ]]; then
+            export CROWNOPS_BASE_COLLECTION_SOURCE="${GITHUB_WORKSPACE}/.deps/crownops-deploy-base"
+          fi
+
+          if [[ -f "${GITHUB_WORKSPACE}/.deps/crownops-deploy-services/galaxy.yml" ]]; then
+            export CROWNOPS_SERVICES_COLLECTION_SOURCE="${GITHUB_WORKSPACE}/.deps/crownops-deploy-services"
+          fi
+
+          ./scripts/install-collections.sh
 
       - name: Syntax check preflight
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/preflight.yml
