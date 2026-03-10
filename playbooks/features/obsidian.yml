@@ -3,6 +3,10 @@
   hosts: core_hosts
   become: true
   roles:
+    - role: platform_bindings
+      tags: [platform, compose]
     - role: crownops.deploy_services.obsidian_livesync
-      when: feature_obsidian_enabled | bool
+      vars:
+        obsidian_livesync: "{{ platform_obsidian_livesync }}"
+      when: features.obsidian_livesync.enabled | default(false) | bool
       tags: [feature, obsidian, services]
