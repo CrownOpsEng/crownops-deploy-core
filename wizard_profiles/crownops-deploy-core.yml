@@ -124,6 +124,7 @@ sections:
           Fingerprint: {{ managed_ssh_keypair.fingerprint }}
 
           The automatic path uses one password prompt on your machine, installs the key, and verifies direct login.
+          It only proceeds if this server's host key is already trusted on your workstation.
           The password is only used for that local install step. It is not written to inventory, logs, or resume state.
         prompt: How would you like to finish SSH access setup?
   - id: general
@@ -408,10 +409,18 @@ sections:
         label: Pinned SSH host keys for the backup destination
         type: multiline_text
         help: |
-          Optional. This is for the remote SFTP backup destination, not the core host.
-          Leave it blank and the wizard will try ssh-keyscan using the destination host and port above.
-          If you want to pin keys manually, paste one known_hosts line per line.
+          This pins the remote SFTP backup destination, not the core host.
+          Paste verified known_hosts lines here if you already have them.
+          Leave it blank to review a suggested ssh-keyscan result after this step.
         when: "target_mode == 'sftp_ssh'"
+      - id: trust_scanned_ssh_known_hosts
+        label: Use ssh-keyscan result as the trusted pin after you verify it
+        type: confirm
+        default: false
+        help: |
+          Only turn this on if you have verified the backup destination host key out of band.
+          When left off, the wizard will keep the scan result as guidance only and deployment will wait for a verified pin.
+        when: "target_mode == 'sftp_ssh' and not ssh_known_hosts"
       - id: environment
         label: Extra environment variables for this target
         type: key_value
