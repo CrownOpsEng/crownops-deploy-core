@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "{{ repo_root | replace('\\', '\\\\') | replace('\"', '\\\"') }}"
+
+{% for plan in backup_destination_bootstrap_plans %}
+printf '\n==> Bootstrapping backup destination %s (%s:%s)\n' \
+  '{{ plan.name | replace("'", "'\"'\"'") }}' \
+  '{{ plan.host | replace("'", "'\"'\"'") }}' \
+  '{{ plan.port }}'
+{{ plan.command }}
+{% endfor %}

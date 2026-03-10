@@ -57,6 +57,7 @@ def build_backup_target_bootstrap_command(
 
 def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data = copy.deepcopy(raw)
+    data["deploy_command"] = "./scripts/deploy.sh"
     host_name = data["host_name"]
     data["feature_obsidian_enabled"] = bool(data.get("feature_obsidian_enabled", True))
     data["obsidian_access_mode"] = data.get("obsidian_access_mode") or "public_https"

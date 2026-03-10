@@ -67,16 +67,17 @@
 - No SFTP backup target setup notes were generated.
 {% endif %}
 
-{% if backup_destination_bootstrap_plans %}
+## Next-Step Commands
 
-### Optional destination bootstrap
-
-{% for plan in backup_destination_bootstrap_plans %}
-- {{ plan.name }}
+- Full deployment:
   ```bash
-  {{ plan.command }}
+  {{ deploy_command }}
   ```
-{% endfor %}
+{% if backup_destination_bootstrap_plans %}
+- Backup destination prerequisites:
+  ```bash
+  {{ wizard_run_dir }}/backup-destination-prerequisites.sh
+  ```
 {% endif %}
 
 ## Raw Secret Values

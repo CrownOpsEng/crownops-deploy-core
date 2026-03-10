@@ -451,24 +451,31 @@ sections:
         default: []
 post_write_actions:
   - kind: local_command
-    when: "action_item.bootstrap_enabled"
-    collection_key: backup_destination_bootstrap_plans
     working_directory_template: "{{ repo_root }}"
     message_template: |
-      Backup destination: {{ action_item.name }}
+      The wizard wrote the deployment configuration and generated follow-up commands for this environment.
 
-      Host: {{ action_item.host }}:{{ action_item.port }}
-      Existing SSH user: {{ action_item.bootstrap_ssh_user }}
-      Target backup user: {{ action_item.target_user }}
-      Repository path: {{ action_item.repository_path }}
-      {% if action_item.bootstrap_use_sudo %}Sudo is enabled for this setup run.{% else %}Sudo is disabled for this setup run.{% endif %}
-    command_template: "{{ action_item.command }}"
-    prompt: How should the wizard hand off this backup destination setup?
+      Deployment handoff:
+      - Run the full deployment now using the generated inventory and secrets.
+      {% if backup_destination_bootstrap_plans %}
+      - Prepare external prerequisites first for backup destination connectivity, users, SSH keys, and repository paths.
+      {% endif %}
+    prompt: How should the wizard hand off the next step?
     available_choices:
       - show
       - run
       - leave
     default_choice: show
+    command_options:
+      - id: deploy
+        label: Run deployment
+        description: Execute the full deployment flow with the generated configuration.
+        command_template: "{{ deploy_command }}"
+      - id: prerequisites
+        when: "backup_destination_bootstrap_plans"
+        label: Set up prerequisites
+        description: Prepare backup destination connectivity, users, keys, and repository paths before deployment.
+        command_template: "{{ wizard_run_dir }}/backup-destination-prerequisites.sh"
 outputs:
   - id: hosts
     path: inventories/prod/hosts.yml
@@ -491,3 +498,8 @@ outputs:
     template: wizard_templates/crownops-deploy-core/details.md.j2
     mode: "0600"
     when: "write_details"
+  - id: backup_destination_prerequisites
+    path: "{{ wizard_run_dir }}/backup-destination-prerequisites.sh"
+    template: wizard_templates/crownops-deploy-core/backup-destination-prerequisites.sh.j2
+    mode: "0700"
+    when: "backup_destination_bootstrap_plans"
