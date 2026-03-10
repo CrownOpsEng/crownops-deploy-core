@@ -78,6 +78,9 @@ jobs:
       - name: Smoke test preflight placeholder validation
         run: bash tests/smoke/test_preflight_placeholder_scan.sh
 
+      - name: Smoke test preflight missing nested contract roots
+        run: bash tests/smoke/test_preflight_missing_contract_roots.sh
+
       - name: Smoke test Tailscale tag validation
         run: bash tests/smoke/test_preflight_tailscale_tag_validation.sh
 
@@ -86,6 +89,9 @@ jobs:
 
       - name: Smoke test platform bindings private mesh composition
         run: bash tests/smoke/test_platform_bindings_private_mesh.sh
+
+      - name: Smoke test platform bindings preserve host extensions
+        run: bash tests/smoke/test_platform_bindings_host_extensions.sh
 
       - name: Smoke test builder restic target normalization
         run: bash tests/smoke/test_builder_restic_target_name_normalization.sh

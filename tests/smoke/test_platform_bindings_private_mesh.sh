@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TMP_DIR="$(mktemp -d)"
+source "${ROOT_DIR}/tests/smoke/lib.bash"
+TMP_DIR="$(create_smoke_tmpdir "${ROOT_DIR}")"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 
 mkdir -p "${TMP_DIR}/inventories/prod/group_vars/all" "${TMP_DIR}/playbooks/roles"

@@ -15,10 +15,33 @@ sed -i "s/example.invalid/example.com/g" "${TMP_DIR}/inventories/prod/group_vars
 sed -i "s/change-me@example.com/ops@example.com/g" "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
 sed -i "s/REPLACE_ME/test-value/g" "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
 sed -i "s/REPLACE_ME/test-secret/g" "${TMP_DIR}/inventories/prod/group_vars/all/vault.yml"
+python3 - <<'PY' "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+content = path.read_text()
+content = content.replace(
+    "    https_port: 443\n    log_level: INFO\n",
+    "    https_port: 443\n    log_level: INFO\n    routes:\n      - name: ops-dashboard\n        rule: Host(`ops.example.com`)\n        service_url: http://grafana:3000\n",
+    1,
+)
+content = content.replace(
+    "    jobs:\n",
+    "    datasets:\n      - name: operator-notes\n        owner: operator\n        paths:\n          - /srv/operator-notes\n        tags:\n          - class:application-data\n    jobs:\n",
+    1,
+)
+content = content.replace(
+    "    requests: []\n",
+    "    requests:\n      - name: ssh-public-alt\n        port: 2222\n        proto: tcp\n        from: any\n",
+    1,
+)
+path.write_text(content)
+PY
 
 cat > "${TMP_DIR}/playbooks/platform-bindings.yml" <<'EOF'
 ---
-- name: Compose public HTTPS platform bindings
+- name: Compose extended platform bindings
   hosts: localhost
   connection: local
   gather_facts: false
@@ -32,18 +55,15 @@ cat > "${TMP_DIR}/playbooks/platform-bindings.yml" <<'EOF'
   roles:
     - role: platform_bindings
   tasks:
-    - name: Show composed ingress routes
+    - name: Show effective Traefik contract
       ansible.builtin.debug:
-        var: platform_ingress_routes
-    - name: Show composed backup datasets
+        var: platform_host_traefik
+    - name: Show effective restic contract
       ansible.builtin.debug:
-        var: platform_backup_datasets
-    - name: Show composed ufw requests
+        var: platform_host_restic
+    - name: Show effective UFW contract
       ansible.builtin.debug:
-        var: platform_ufw_requests
-    - name: Show composed obsidian contract
-      ansible.builtin.debug:
-        var: platform_obsidian_livesync
+        var: platform_host_ufw
 EOF
 
 OUTPUT="$(
@@ -51,28 +71,12 @@ OUTPUT="$(
     ansible-playbook -i localhost, playbooks/platform-bindings.yml 2>&1
 )"
 
-if [[ "${OUTPUT}" != *"obsidian-couchdb"* ]]; then
-  echo "expected public HTTPS bindings to compose the obsidian ingress route" >&2
-  printf '%s\n' "${OUTPUT}" >&2
-  exit 1
-fi
+for expected in 'ops-dashboard' 'obsidian-couchdb' 'operator-notes' 'workspace-data' 'ssh-public-alt' 'https-public'; do
+  if [[ "${OUTPUT}" != *"${expected}"* ]]; then
+    echo "expected merged platform contract output to include ${expected}" >&2
+    printf '%s\n' "${OUTPUT}" >&2
+    exit 1
+  fi
+done
 
-if [[ "${OUTPUT}" != *"traefik-acme"* ]]; then
-  echo "expected public HTTPS bindings to compose the traefik acme dataset" >&2
-  printf '%s\n' "${OUTPUT}" >&2
-  exit 1
-fi
-
-if [[ "${OUTPUT}" != *"https-public"* ]]; then
-  echo "expected public HTTPS bindings to compose the https ufw request" >&2
-  printf '%s\n' "${OUTPUT}" >&2
-  exit 1
-fi
-
-if [[ "${OUTPUT}" != *"shared_network_name\": \"proxy"* ]]; then
-  echo "expected public HTTPS bindings to hand the proxy network to obsidian" >&2
-  printf '%s\n' "${OUTPUT}" >&2
-  exit 1
-fi
-
-printf 'platform bindings public_https smoke test passed\n'
+printf 'platform bindings host extension merge smoke test passed\n'

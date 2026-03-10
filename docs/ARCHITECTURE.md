@@ -42,6 +42,12 @@ That composition layer derives:
 - `platform_backup_datasets`
 - `platform_ufw_requests`
 
+Then it builds the effective host contracts consumed by the shared roles:
+
+- `platform_host_traefik` appends composed routes to any host-owned `host.traefik.routes`
+- `platform_host_restic` appends composed datasets to any host-owned `host.restic.datasets`
+- `platform_host_ufw` appends composed firewall requests to any host-owned `host.ufw.requests`
+
 The backup layer is modeled as:
 
 - targets: backup destinations and transport credentials

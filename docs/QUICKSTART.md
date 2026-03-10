@@ -114,6 +114,7 @@ At minimum set:
 - synced account structure in `features.obsidian_livesync.couchdb.vaults` and CouchDB passwords in `all/vault.yml` if Obsidian is enabled
 - local markdown workspace names in `all.yml` if you want local-only content directories scaffolded
 - backup targets and backup jobs under `host.restic`; dataset scope comes from site composition, not from feature-owned schedules
+- optional host-owned extensions such as `host.traefik.routes`, `host.restic.datasets`, and `host.ufw.requests` if this site needs extra ingress, backup scope, or firewall rules beyond the composed defaults
 - Tailscale hostname/tags in `all/main.yml` and optional auth key in `all/vault.yml`
 
 Notes:

@@ -20,40 +20,40 @@ printf 'test-only\n' > "${TMP_DIR}/.vault_pass"
 
 (cd "${TMP_DIR}" && bash ./scripts/init-local-config.sh >/dev/null)
 
-sed -i "s/203.0.113.10/192.0.2.10/" "${TMP_DIR}/inventories/prod/hosts.yml"
-sed -i "s/example.invalid/example.com/g" "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
-sed -i "s/change-me@example.com/ops@example.com/g" "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
-sed -i "s/REPLACE_ME/test-value/g" "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
-sed -i "s/REPLACE_ME/test-secret/g" "${TMP_DIR}/inventories/prod/group_vars/all/vault.yml"
 python3 - <<'PY' "${TMP_DIR}/inventories/prod/group_vars/all/main.yml"
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
 content = path.read_text()
-content = content.replace("vault_root: /srv/crownops/vaults", "vault_root: /srv/crownops")
-path.write_text(content)
+start = content.index("features:")
+end = content.index("tailscale_auth_key:")
+path.write_text(content[:start] + content[end:])
 PY
 
-python3 - <<'PY' "${TMP_DIR}/roles/platform_bindings/tasks/main.yml"
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-content = path.read_text()
-content = content.replace('- "{{ vault_root }}/workspaces"', '- "{{ vault_root }}"')
-path.write_text(content)
-PY
-
+set +e
 OUTPUT="$(
   cd "${TMP_DIR}" &&
     ANSIBLE_CONFIG="${TMP_DIR}/ansible.cfg" ansible-playbook -e preflight_validate_remote_connectivity=false -i inventories/prod/hosts.yml playbooks/preflight.yml 2>&1
 )"
+STATUS=$?
+set -e
 
-if [[ "${OUTPUT}" != *"Effective backup datasets include broad service roots"* ]]; then
-  echo "expected preflight to warn on broad backup path roots" >&2
+if [[ ${STATUS} -eq 0 ]]; then
+  echo "expected preflight to fail when nested contract roots are missing" >&2
+  exit 1
+fi
+
+if [[ "${OUTPUT}" == *"is undefined"* ]]; then
+  echo "preflight should report missing contract roots without undefined-variable crashes" >&2
   printf '%s\n' "${OUTPUT}" >&2
   exit 1
 fi
 
-printf 'preflight restic broad path warning smoke test passed\n'
+if [[ "${OUTPUT}" != *"main inventory must define nested features.obsidian_livesync, host.traefik, host.restic, and host.ufw mappings."* ]]; then
+  echo "expected missing nested contract root validation error in preflight output" >&2
+  printf '%s\n' "${OUTPUT}" >&2
+  exit 1
+fi
+
+printf 'preflight missing contract roots smoke test passed\n'

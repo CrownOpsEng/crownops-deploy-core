@@ -25,6 +25,7 @@ Configuration model:
 - shared host capabilities live under `host.*`
 - feature contracts live under `features.*`
 - site-local composition derives shared ingress, backup datasets, and firewall requests before host roles reconcile them
+- host-owned `host.traefik.routes`, `host.restic.datasets`, and `host.ufw.requests` remain additive extension points and are preserved when the site layer composes shared inputs
 
 Read first:
 
