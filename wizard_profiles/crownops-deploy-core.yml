@@ -279,27 +279,30 @@ sections:
           params:
             length: 32
   - id: obsidian_vault_accounts
-    title: Synced Vault Accounts
-    description: One account per person or shared vault, each with its own generated CouchDB password.
+    title: Obsidian Synced Vaults
+    description: Add the CouchDB-backed vault accounts that Obsidian LiveSync should create. Start with one and add more only if you need them.
     kind: repeatable
     when: "feature_obsidian_enabled"
     collection_key: obsidian_vault_accounts
-    item_label: vault account
+    item_label: synced vault
     default_count: 1
     min_items: 1
     fields:
       - id: name
-        label: Account name
-        help: Operator-facing label stored in inventory and handoff notes. Use a neutral alias here too if you want to avoid personal names anywhere in deployment records.
+        label: Vault label
+        help: Friendly label for this synced vault in deployment records and handoff notes.
         required: true
       - id: db_name
-        label: CouchDB database name override
-        help: Neutral identifiers such as crown1 are a good choice when you do not want personal names in database names.
+        label: CouchDB database name
+        help: This is the database Obsidian LiveSync will use for this vault. Press Enter to keep the derived default.
+        default_template: "{{ name | lower | replace(' ', '_') }}"
       - id: user
-        label: CouchDB username override
-        help: Neutral identifiers such as crown1_user are a good choice when you do not want personal names in CouchDB usernames.
+        label: CouchDB username
+        help: This is the login Obsidian LiveSync will use for this vault. Press Enter to keep the derived default.
+        default_template: "{{ name | lower | replace(' ', '_') }}"
       - id: password
-        label: CouchDB account password
+        label: CouchDB password
+        help: A strong password is generated automatically for this synced vault account.
         secret: true
         source:
           kind: generate
