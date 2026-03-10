@@ -131,9 +131,10 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data["deploy_command"] = "./scripts/deploy.sh"
     data["ssh_lockdown_command"] = "./scripts/ssh-lockdown.sh"
     host_name = data["host_name"]
-    data["feature_obsidian_enabled"] = bool(data.get("feature_obsidian_enabled", True))
-    data["obsidian_access_mode"] = data.get("obsidian_access_mode") or "public_https"
-    data["private_mesh_url_strategy"] = data.get("private_mesh_url_strategy") or "tailscale_magicdns"
+    obsidian_enabled = bool(data.get("feature_obsidian_enabled", True))
+    obsidian_access_mode = data.get("obsidian_access_mode") or "public_https"
+    private_mesh_url_strategy = data.get("private_mesh_url_strategy") or "tailscale_magicdns"
+    restic_enabled = bool(data.get("restic_enabled", True))
 
     data["ops_domain"] = data.get("ops_domain") or f"ops.{data['base_domain']}"
     data["tailscale_hostname"] = data.get("tailscale_hostname") or host_name
@@ -162,14 +163,14 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
             )
     data["ssh_pubkeys"] = ssh_pubkeys
 
-    if data.get("feature_obsidian_enabled", False):
-        if data["obsidian_access_mode"] == "public_https":
+    if obsidian_enabled:
+        if obsidian_access_mode == "public_https":
             data["obsidian_base_url"] = data.get("obsidian_base_url") or (
                 f"https://{data['obsidian_service_subdomain']}.{data['ops_domain']}"
             )
             data["couchdb_bind_host"] = data.get("couchdb_bind_host") or "127.0.0.1"
         else:
-            if data["private_mesh_url_strategy"] == "tailscale_magicdns" and data.get("tailscale_tailnet_name"):
+            if private_mesh_url_strategy == "tailscale_magicdns" and data.get("tailscale_tailnet_name"):
                 data["obsidian_base_url"] = data.get("obsidian_base_url") or (
                     f"http://{data['tailscale_hostname']}.{data['tailscale_tailnet_name']}.ts.net:{data['couchdb_port']}"
                 )
@@ -313,19 +314,21 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
     data["backup_destination_bootstrap_plans"] = backup_destination_bootstrap_plans
 
     target_names = [item["name"] for item in restic_targets]
-    if data.get("restic_enabled", True) and target_names:
-        host_foundation_paths = ["/etc/ssh", "/etc/fail2ban", "/etc/ufw"]
+    host_ufw_baseline_tcp_public = [int(port) for port in copy.deepcopy(data.get("ufw_allowed_tcp_public", []) or [])]
+    if obsidian_enabled and obsidian_access_mode == "public_https" and 443 not in host_ufw_baseline_tcp_public:
+        host_ufw_baseline_tcp_public.append(443)
 
-        data["restic_backup_jobs"] = [
+    host_restic_jobs: list[dict[str, Any]] = []
+    if restic_enabled:
+        host_restic_jobs = [
             {
                 "name": "host-foundation",
-                "paths": host_foundation_paths,
+                "selector_tags": ["class:host-foundation"],
                 "target_names": target_names,
-                "tags": ["profile:stateful-app", "class:host"],
             },
             {
                 "name": "application-data",
-                "paths": ["{{ vault_root }}/workspaces"],
+                "selector_tags": ["class:application-data"],
                 "target_names": target_names,
                 "backup_schedule": "*-*-* 03:30:00",
                 "backup_randomized_delay": "20m",
@@ -334,33 +337,109 @@ def build_crownops_deploy_core(raw: dict[str, Any]) -> dict[str, Any]:
                 "retention_daily": 14,
                 "retention_weekly": 8,
                 "retention_monthly": 6,
-                "tags": ["profile:stateful-app", "class:data"],
             },
         ]
-        restic_backup_contributions = []
-        if data.get("feature_obsidian_enabled", False) and data.get("obsidian_access_mode") == "public_https":
-            restic_backup_contributions.append(
-                {
-                    "job": "host-foundation",
-                    "paths": ["{{ traefik_acme_storage }}"],
-                    "tags": ["feature:edge-proxy"],
-                }
-            )
-        if data.get("feature_obsidian_enabled", False):
-            restic_backup_contributions.append(
-                {
-                    "job": "application-data",
-                    "paths": ["{{ couchdb_dir }}/data"],
-                    "pre_commands": ["docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"],
-                    "post_commands": ["docker compose -f /opt/couchdb/docker-compose.yml start couchdb"],
-                    "tags": ["feature:obsidian-livesync"],
-                }
-            )
-        data["restic_backup_contributions"] = restic_backup_contributions
-    else:
-        data["restic_backup_jobs"] = []
-        data["restic_backup_contributions"] = []
-        data["restic_enabled"] = False
+
+    data["features"] = {
+        "obsidian_livesync": {
+            "enabled": obsidian_enabled,
+            "access_mode": obsidian_access_mode,
+            "base_url": data.get("obsidian_base_url", ""),
+            "private_mesh": {
+                "url_strategy": private_mesh_url_strategy,
+                "tailnet_name": data.get("tailscale_tailnet_name", ""),
+            },
+            "ingress": {
+                "route_name": "obsidian-couchdb",
+            },
+            "couchdb": {
+                "dir": data.get("couchdb_dir", "/opt/couchdb"),
+                "container_name": data.get("couchdb_container_name", "couchdb"),
+                "internal_network_name": data.get("internal_network_name", "internal"),
+                "bind_host": data.get("couchdb_bind_host", ""),
+                "port": int(data.get("couchdb_port", 5984)),
+                "admin_user": data.get("couchdb_admin_user", "admin"),
+                "admin_password": data["couchdb_admin_password_ref"],
+                "cors_origins": data.get("obsidian_cors_origins", []),
+                "vaults": data.get("couchdb_vaults", []),
+            },
+        }
+    }
+    data["host"] = {
+        "traefik": {
+            "enabled": obsidian_enabled and obsidian_access_mode == "public_https",
+            "manage_mode": "managed",
+            "layout_root": data.get("traefik_dir", "/opt/traefik"),
+            "static_config_path": f"{data.get('traefik_dir', '/opt/traefik')}/traefik.yml",
+            "dynamic_config_root": f"{data.get('traefik_dir', '/opt/traefik')}/dynamic",
+            "dynamic_routes_dir": f"{data.get('traefik_dir', '/opt/traefik')}/dynamic/routes",
+            "acme_storage_path": data.get("traefik_acme_storage", "/opt/traefik/acme/acme.json"),
+            "proxy_network_name": data.get("traefik_network_name", "proxy"),
+            "container_name": "traefik",
+            "compose_project_name": "traefik",
+            "certificate_resolver_name": data.get("traefik_certresolver_name", "dnsresolver"),
+            "acme_email": data.get("traefik_acme_email", ""),
+            "dns_provider": data.get("acme_dns_provider", ""),
+            "dns_env": copy.deepcopy(data.get("acme_env", {}) or {}),
+            "https_entrypoint_name": "websecure",
+            "https_port": 443,
+            "log_level": "INFO",
+        },
+        "restic": {
+            "enabled": restic_enabled,
+            "install_package": True,
+            "package_name": "restic",
+            "apt_cache_valid_time": int(data.get("restic_apt_cache_valid_time", 86400)),
+            "backup_root": "/opt/crownops-backup",
+            "targets_dir": "/opt/crownops-backup/targets",
+            "jobs_dir": "/opt/crownops-backup/jobs",
+            "passwords_dir": "/opt/crownops-backup/passwords",
+            "backup_script_path": "/usr/local/sbin/crownops-restic-backup",
+            "maintain_script_path": "/usr/local/sbin/crownops-restic-maintain",
+            "ssh_dir": "/opt/crownops-backup/ssh",
+            "targets": restic_targets,
+            "jobs": host_restic_jobs,
+            "feature_owned_jobs": [],
+        },
+        "ufw": {
+            "enabled": True,
+            "logging": "low",
+            "default_incoming_policy": "deny",
+            "default_outgoing_policy": "allow",
+            "managed_state_dir": "/etc/crownops",
+            "managed_state_file": "/etc/crownops/host-ufw-rules.json",
+            "baseline_tcp_public": host_ufw_baseline_tcp_public,
+            "baseline_udp_public": [int(port) for port in copy.deepcopy(data.get("ufw_allowed_udp_public", []) or [])],
+            "requests": [],
+        },
+    }
+
+    for legacy_key in [
+        "feature_obsidian_enabled",
+        "obsidian_access_mode",
+        "private_mesh_url_strategy",
+        "obsidian_service_subdomain",
+        "obsidian_cors_origins",
+        "acme_dns_provider",
+        "acme_env",
+        "ufw_allowed_tcp_public",
+        "ufw_allowed_udp_public",
+        "traefik_dir",
+        "traefik_network_name",
+        "traefik_certresolver_name",
+        "traefik_acme_storage",
+        "couchdb_dir",
+        "couchdb_container_name",
+        "couchdb_bind_host",
+        "couchdb_port",
+        "restic_enabled",
+        "restic_apt_cache_valid_time",
+        "restic_targets_input",
+        "restic_targets",
+        "restic_backup_jobs",
+        "restic_backup_contributions",
+    ]:
+        data.pop(legacy_key, None)
 
     data["generated_secret_fingerprints"] = []
     if data.get("vault_couchdb_admin_password"):

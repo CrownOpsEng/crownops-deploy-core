@@ -30,7 +30,6 @@ defaults:
   tailscale_tags: []
   ufw_allowed_tcp_public:
     - 22
-    - 443
   ufw_allowed_udp_public: []
   traefik_dir: /opt/traefik
   traefik_network_name: proxy

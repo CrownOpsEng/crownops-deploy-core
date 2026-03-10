@@ -12,46 +12,6 @@ ops_group: deploy
 ssh_pubkeys:
   - "ssh-ed25519 REPLACE_ME"
 
-ufw_allowed_tcp_public: [22, 443]
-ufw_allowed_udp_public: []
-
-feature_obsidian_enabled: true
-obsidian_access_mode: public_https
-obsidian_base_url: https://notes.ops.example.invalid
-obsidian_cors_origins: []
-obsidian_service_subdomain: notes
-
-traefik_dir: /opt/traefik
-traefik_network_name: proxy
-internal_network_name: internal
-traefik_acme_email: change-me@example.invalid
-traefik_certresolver_name: dnsresolver
-traefik_acme_storage: /opt/traefik/acme/acme.json
-acme_dns_provider: cloudflare
-# Example env variable names only. Fill with real provider values.
-acme_env:
-  CF_DNS_API_TOKEN: "REPLACE_ME"
-
-couchdb_dir: /opt/couchdb
-couchdb_container_name: couchdb
-couchdb_admin_user: admin
-couchdb_admin_password: "{{ vault_couchdb_admin_password }}"
-couchdb_bind_host: 127.0.0.1
-couchdb_port: 5984
-couchdb_vaults:
-  - name: user_a
-    db_name: vault_user_a
-    user: vault_user_a_user
-    password: "{{ vault_couchdb_account_passwords.user_a }}"
-  - name: user_b
-    db_name: vault_user_b
-    user: vault_user_b_user
-    password: "{{ vault_couchdb_account_passwords.user_b }}"
-  - name: user_c
-    db_name: vault_user_c
-    user: vault_user_c_user
-    password: "{{ vault_couchdb_account_passwords.user_c }}"
-
 vault_root: /srv/crownops/vaults
 exports_root: /srv/crownops/exports
 local_markdown_workspaces:
@@ -59,63 +19,116 @@ local_markdown_workspaces:
   - operations
   - scratch
 
-restic_enabled: true
-restic_apt_cache_valid_time: 86400
-restic_targets:
-  - name: primary
-    repository: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
-    password: "{{ vault_restic_target_secrets.primary.password }}"
-    ssh_private_key: "{{ vault_restic_target_secrets.primary.ssh_private_key | default('') }}"
-    ssh_known_hosts: "{{ vault_restic_target_secrets.primary.ssh_known_hosts | default('') }}"
-    environment: "{{ vault_restic_target_secrets.primary.environment | default({}) }}"
-  - name: secondary
-    repository: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
-    password: "{{ vault_restic_target_secrets.secondary.password }}"
-    ssh_private_key: "{{ vault_restic_target_secrets.secondary.ssh_private_key | default('') }}"
-    ssh_known_hosts: "{{ vault_restic_target_secrets.secondary.ssh_known_hosts | default('') }}"
-    environment: "{{ vault_restic_target_secrets.secondary.environment | default({}) }}"
+features:
+  obsidian_livesync:
+    enabled: true
+    access_mode: public_https
+    base_url: https://notes.ops.example.invalid
+    private_mesh:
+      url_strategy: tailscale_magicdns
+      tailnet_name: ""
+    ingress:
+      route_name: obsidian-couchdb
+    couchdb:
+      dir: /opt/couchdb
+      container_name: couchdb
+      internal_network_name: internal
+      bind_host: 127.0.0.1
+      port: 5984
+      admin_user: admin
+      admin_password: "{{ vault_couchdb_admin_password }}"
+      cors_origins: []
+      vaults:
+        - name: user_a
+          db_name: vault_user_a
+          user: vault_user_a_user
+          password: "{{ vault_couchdb_account_passwords.user_a }}"
+        - name: user_b
+          db_name: vault_user_b
+          user: vault_user_b_user
+          password: "{{ vault_couchdb_account_passwords.user_b }}"
+        - name: user_c
+          db_name: vault_user_c
+          user: vault_user_c_user
+          password: "{{ vault_couchdb_account_passwords.user_c }}"
 
-restic_backup_jobs:
-  - name: host-foundation
-    paths:
-      - /etc/ssh
-      - /etc/fail2ban
-      - /etc/ufw
-    target_names: [primary, secondary]
-    tags:
-      - profile:stateful-app
-      - class:host
-  - name: application-data
-    # Back up only durable application state. Service configs are rebuilt from Ansible.
-    paths:
-      - "{{ vault_root }}/workspaces"
-    target_names: [primary, secondary]
-    backup_schedule: "*-*-* 03:30:00"
-    backup_randomized_delay: 20m
-    maintenance_schedule: "Sun *-*-* 05:30:00"
-    maintenance_randomized_delay: 30m
-    retention_daily: 14
-    retention_weekly: 8
-    retention_monthly: 6
-    tags:
-      - profile:stateful-app
-      - class:data
-
-restic_backup_contributions:
-  - job: host-foundation
-    paths:
-      - "{{ traefik_acme_storage }}"
-    tags:
-      - feature:edge-proxy
-  - job: application-data
-    paths:
-      - "{{ couchdb_dir }}/data"
-    pre_commands:
-      - "docker compose -f /opt/couchdb/docker-compose.yml stop couchdb"
-    post_commands:
-      - "docker compose -f /opt/couchdb/docker-compose.yml start couchdb"
-    tags:
-      - feature:obsidian-livesync
+host:
+  traefik:
+    enabled: true
+    manage_mode: managed
+    layout_root: /opt/traefik
+    static_config_path: /opt/traefik/traefik.yml
+    dynamic_config_root: /opt/traefik/dynamic
+    dynamic_routes_dir: /opt/traefik/dynamic/routes
+    acme_storage_path: /opt/traefik/acme/acme.json
+    proxy_network_name: proxy
+    container_name: traefik
+    compose_project_name: traefik
+    certificate_resolver_name: dnsresolver
+    acme_email: change-me@example.invalid
+    dns_provider: cloudflare
+    dns_env:
+      CF_DNS_API_TOKEN: "REPLACE_ME"
+    https_entrypoint_name: websecure
+    https_port: 443
+    log_level: INFO
+  restic:
+    enabled: true
+    install_package: true
+    package_name: restic
+    apt_cache_valid_time: 86400
+    backup_root: /opt/crownops-backup
+    targets_dir: /opt/crownops-backup/targets
+    jobs_dir: /opt/crownops-backup/jobs
+    passwords_dir: /opt/crownops-backup/passwords
+    backup_script_path: /usr/local/sbin/crownops-restic-backup
+    maintain_script_path: /usr/local/sbin/crownops-restic-maintain
+    ssh_dir: /opt/crownops-backup/ssh
+    targets:
+      - name: primary
+        repository: sftp:backup@primary.example.invalid:/srv/restic/deploy-core
+        password: "{{ vault_restic_target_secrets.primary.password }}"
+        ssh_private_key: "{{ vault_restic_target_secrets.primary.ssh_private_key | default('') }}"
+        ssh_known_hosts: "{{ vault_restic_target_secrets.primary.ssh_known_hosts | default('') }}"
+        environment: "{{ vault_restic_target_secrets.primary.environment | default({}) }}"
+      - name: secondary
+        repository: sftp:backup@secondary.example.invalid:/srv/restic/deploy-core
+        password: "{{ vault_restic_target_secrets.secondary.password }}"
+        ssh_private_key: "{{ vault_restic_target_secrets.secondary.ssh_private_key | default('') }}"
+        ssh_known_hosts: "{{ vault_restic_target_secrets.secondary.ssh_known_hosts | default('') }}"
+        environment: "{{ vault_restic_target_secrets.secondary.environment | default({}) }}"
+    jobs:
+      - name: host-foundation
+        selector_tags:
+          - class:host-foundation
+        target_names:
+          - primary
+          - secondary
+      - name: application-data
+        selector_tags:
+          - class:application-data
+        target_names:
+          - primary
+          - secondary
+        backup_schedule: "*-*-* 03:30:00"
+        backup_randomized_delay: 20m
+        maintenance_schedule: "Sun *-*-* 05:30:00"
+        maintenance_randomized_delay: 30m
+        retention_daily: 14
+        retention_weekly: 8
+        retention_monthly: 6
+    feature_owned_jobs: []
+  ufw:
+    enabled: true
+    logging: low
+    default_incoming_policy: deny
+    default_outgoing_policy: allow
+    managed_state_dir: /etc/crownops
+    managed_state_file: /etc/crownops/host-ufw-rules.json
+    baseline_tcp_public:
+      - 22
+    baseline_udp_public: []
+    requests: []
 
 tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
 tailscale_hostname: core-01
