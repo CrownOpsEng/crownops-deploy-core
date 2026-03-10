@@ -55,24 +55,31 @@ result = build_crownops_deploy_core(
     }
 )
 
-target_names = [item["name"] for item in result["restic_targets"]]
+if "restic_targets" in result or "restic_backup_jobs" in result or "restic_backup_contributions" in result:
+    raise SystemExit("builder should not expose removed flat backup keys")
+
+target_names = [item["name"] for item in result["host"]["restic"]["targets"]]
 if target_names != ["h4f", "laptop_backup"]:
     raise SystemExit(f"unexpected normalized restic target names: {target_names!r}")
 
-if result["restic_targets"][0]["sftp_port"] != 2222:
-    raise SystemExit(f"expected first restic target to preserve sftp_port, got {result['restic_targets'][0]['sftp_port']!r}")
+if result["host"]["restic"]["targets"][0]["sftp_port"] != 2222:
+    raise SystemExit(f"expected first restic target to preserve sftp_port, got {result['host']['restic']['targets'][0]['sftp_port']!r}")
 
-for job in result["restic_backup_jobs"]:
+for job in result["host"]["restic"]["jobs"]:
     if job["target_names"] != ["h4f", "laptop_backup"]:
         raise SystemExit(f"unexpected backup job target names: {job['target_names']!r}")
+    if "selector_tags" not in job:
+        raise SystemExit(f"expected dataset selector_tags in nested restic job, got {job!r}")
 
 vault_keys = list(result["vault_restic_target_secrets"].keys())
 if vault_keys != ["h4f", "laptop_backup"]:
     raise SystemExit(f"unexpected vault target secret keys: {vault_keys!r}")
 
-application_job = next(job for job in result["restic_backup_jobs"] if job["name"] == "application-data")
-if application_job["paths"] != ["{{ vault_root }}/workspaces"]:
-    raise SystemExit(f"unexpected application-data paths for non-obsidian deployment: {application_job['paths']!r}")
+application_job = next(job for job in result["host"]["restic"]["jobs"] if job["name"] == "application-data")
+if application_job["selector_tags"] != ["class:application-data"]:
+    raise SystemExit(f"unexpected application-data dataset selectors: {application_job['selector_tags']!r}")
+if result["host"]["traefik"]["enabled"]:
+    raise SystemExit("traefik should stay disabled for the non-obsidian builder scenario")
 
 obsidian_result = build_crownops_deploy_core(
     {
@@ -100,11 +107,15 @@ obsidian_result = build_crownops_deploy_core(
     }
 )
 
-contributions = {item["job"]: item["paths"] for item in obsidian_result["restic_backup_contributions"]}
-if contributions.get("host-foundation") != ["{{ traefik_acme_storage }}"]:
-    raise SystemExit(f"unexpected host-foundation contribution paths: {contributions.get('host-foundation')!r}")
-if contributions.get("application-data") != ["{{ couchdb_dir }}/data"]:
-    raise SystemExit(f"unexpected application-data contribution paths: {contributions.get('application-data')!r}")
+if not obsidian_result["host"]["traefik"]["enabled"]:
+    raise SystemExit("expected public_https obsidian deployment to enable nested host traefik config")
+
+obsidian_job_targets = [job["target_names"] for job in obsidian_result["host"]["restic"]["jobs"]]
+if obsidian_job_targets != [["primary"], ["primary"]]:
+    raise SystemExit(f"unexpected nested restic job targets: {obsidian_job_targets!r}")
+
+if obsidian_result["features"]["obsidian_livesync"]["ingress"]["route_name"] != "obsidian-couchdb":
+    raise SystemExit("expected obsidian ingress route name in nested feature contract")
 
 print("builder restic target name normalization smoke test passed")
 PY

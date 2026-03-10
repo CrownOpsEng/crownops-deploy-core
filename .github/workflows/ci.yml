@@ -47,11 +47,32 @@ jobs:
       - name: Smoke test Tailscale tag validation
         run: bash tests/smoke/test_preflight_tailscale_tag_validation.sh
 
+      - name: Smoke test platform bindings public HTTPS composition
+        run: bash tests/smoke/test_platform_bindings_public_https.sh
+
+      - name: Smoke test platform bindings private mesh composition
+        run: bash tests/smoke/test_platform_bindings_private_mesh.sh
+
       - name: Smoke test builder restic target normalization
         run: bash tests/smoke/test_builder_restic_target_name_normalization.sh
 
+      - name: Smoke test builder obsidian setup URI generation
+        run: bash tests/smoke/test_builder_obsidian_setup_uri_generation.sh
+
+      - name: Smoke test builder restic target keypair consistency
+        run: bash tests/smoke/test_builder_restic_target_keypair_consistency.sh
+
       - name: Smoke test restic target name preflight validation
         run: bash tests/smoke/test_preflight_restic_target_name_validation.sh
+
+      - name: Smoke test restic cache valid time preflight validation
+        run: bash tests/smoke/test_preflight_restic_cache_valid_time_validation.sh
+
+      - name: Smoke test broad backup dataset warning
+        run: bash tests/smoke/test_preflight_restic_broad_path_warning.sh
+
+      - name: Smoke test unsupported feature-owned jobs validation
+        run: bash tests/smoke/test_preflight_feature_owned_jobs_rejected.sh
 
       - name: Syntax check bootstrap
         run: ansible-playbook --syntax-check -i inventories/prod/hosts.yml playbooks/bootstrap.yml

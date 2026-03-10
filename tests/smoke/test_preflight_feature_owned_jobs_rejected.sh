@@ -30,29 +30,27 @@ import sys
 
 path = Path(sys.argv[1])
 content = path.read_text()
-content = content.replace("vault_root: /srv/crownops/vaults", "vault_root: /srv/crownops")
+content = content.replace("    feature_owned_jobs: []", "    feature_owned_jobs:\n      - name: forbidden-job")
 path.write_text(content)
 PY
 
-python3 - <<'PY' "${TMP_DIR}/roles/platform_bindings/tasks/main.yml"
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-content = path.read_text()
-content = content.replace('- "{{ vault_root }}/workspaces"', '- "{{ vault_root }}"')
-path.write_text(content)
-PY
-
+set +e
 OUTPUT="$(
   cd "${TMP_DIR}" &&
     ANSIBLE_CONFIG="${TMP_DIR}/ansible.cfg" ansible-playbook -e preflight_validate_remote_connectivity=false -i inventories/prod/hosts.yml playbooks/preflight.yml 2>&1
 )"
+STATUS=$?
+set -e
 
-if [[ "${OUTPUT}" != *"Composed backup datasets include broad service roots"* ]]; then
-  echo "expected preflight to warn on broad backup path roots" >&2
+if [[ ${STATUS} -eq 0 ]]; then
+  echo "expected preflight to fail when feature_owned_jobs is configured" >&2
+  exit 1
+fi
+
+if [[ "${OUTPUT}" != *"host.restic.feature_owned_jobs is intentionally unsupported"* ]]; then
+  echo "expected unsupported feature_owned_jobs validation error in preflight output" >&2
   printf '%s\n' "${OUTPUT}" >&2
   exit 1
 fi
 
-printf 'preflight restic broad path warning smoke test passed\n'
+printf 'preflight feature_owned_jobs rejection smoke test passed\n'

@@ -63,6 +63,9 @@ raw = {
 first = build_crownops_deploy_core(raw)
 second = build_crownops_deploy_core(raw)
 
+if "restic_targets" in first or "restic_backup_jobs" in first:
+    raise SystemExit("builder should not expose removed flat restic output keys")
+
 if counter["value"] != 1:
     raise SystemExit(f"expected generated restic keypair to be cached across builder calls, got {counter['value']} generations")
 
@@ -85,6 +88,10 @@ for result in (first, second):
     private_key = result["vault_restic_target_secrets"]["h4f"]["ssh_private_key"]
     if private_key != expected_private_key:
         raise SystemExit(f"unexpected vault private key: {private_key!r}")
+
+    nested_target = result["host"]["restic"]["targets"][0]
+    if nested_target["name"] != "h4f":
+        raise SystemExit(f"unexpected nested restic target name: {nested_target['name']!r}")
 
 print("builder restic target keypair consistency smoke test passed")
 PY
